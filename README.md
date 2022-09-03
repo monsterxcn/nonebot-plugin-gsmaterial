@@ -68,9 +68,9 @@ cp -r data/gsmaterial /path/to/bot/data/
 ## 使用须知
 
 
- - 插件的数据来源为 [@Project Amber](https://ambr.top/chs)，请保证 Bot 与此站点的连接质量。
+ - 插件的数据来源为 [Project Amber](https://ambr.top/chs)，请保证 Bot 与此站点的连接质量。
    
- - 插件首次启用时，会自动从阿里云 OSS 下载绘图模板，并尝试从 [@Project Amber](https://ambr.top/chs) 下载所有角色及武器图片，启动时间由 Bot 与 [@Project Amber](https://ambr.top/chs) 的连接质量决定。图片下载至本地后将不再从远程下载，启动时间将大幅缩短。
+ - 插件首次启用时，会自动从阿里云 OSS 下载绘图模板，并尝试从 [Project Amber](https://ambr.top/chs) 下载所有角色及武器图片，启动时间由 Bot 与 [Project Amber](https://ambr.top/chs) 的连接质量决定。图片下载至本地后将不再从远程下载，启动时间将大幅缩短。
    
    如果启动插件时下载图片的时间久到离谱，可以考虑自行克隆仓库内文件或从 [此处](https://monsterx.oss-cn-shanghai.aliyuncs.com/bot/gsmaterial/gsmaterial.zip) 下载资源压缩包。
    
@@ -78,6 +78,7 @@ cp -r data/gsmaterial /path/to/bot/data/
    
    | 环境变量 | 必需 | 默认 | 说明 |
    |:-------|:----:|:-----|:----|
+   | `gsmaterial_scheduler` | 否 | `8:10` | 每日材料订阅推送时间 |
    | `gsmaterial_skip_three` | 否 | `True` | 是否忽略三星物品 |
    | `resources_dir` | 否 | `/path/to/bot/data/` | 插件数据缓存目录的父文件夹，包含 `gsmaterial` 文件夹的上级文件夹路径 |
 
@@ -85,11 +86,13 @@ cp -r data/gsmaterial /path/to/bot/data/
 ## 命令说明
 
 
-插件响应以 `今日` / `今天打什么` 开头的消息。
+插件响应以 `今日` / `原神材料` 开头的消息。
 
 | 附带参数 | 说明 |
 |:-------|:----|
 | 空 | 返回今日天赋培养与武器突破材料总图 |
+| `订阅` | 启用当前消息来源的每日材料订阅，群组内仅 Bot 管理员、群组创建者、群组管理员可操作 |
+| `订阅删除` | 禁用当前消息来源的每日材料订阅，群组内仅 Bot 管理员、群组创建者、群组管理员可操作 |
 | `天赋` / `角色` | 返回今日天赋培养材料图片 |
 | `武器` | 返回今日武器突破材料图片 |
 
@@ -97,4 +100,4 @@ cp -r data/gsmaterial /path/to/bot/data/
 ## 特别鸣谢
 
 
-[@nonebot/nonebot2](https://github.com/nonebot/nonebot2/) | [@Mrs4s/go-cqhttp](https://github.com/Mrs4s/go-cqhttp) | [@Project Amber](https://ambr.top/chs)
+[@nonebot/nonebot2](https://github.com/nonebot/nonebot2/) | [@Mrs4s/go-cqhttp](https://github.com/Mrs4s/go-cqhttp) | [Project Amber](https://ambr.top/chs)

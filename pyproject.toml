@@ -1,7 +1,7 @@
 [tool.poetry]
 name = "nonebot-plugin-gsmaterial"
-version = "0.1.0"
-description = "Genshin player cards plugin for NoneBot2"
+version = "0.1.1"
+description = "Genshin daily material plugin for NoneBot2"
 authors = ["monsterxcn <monsterxcn@gmail.com>"]
 documentation = "https://github.com/monsterxcn/nonebot-plugin-gsmaterial#readme"
 license = "MIT"

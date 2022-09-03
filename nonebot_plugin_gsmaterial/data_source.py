@@ -38,6 +38,10 @@ LOCAL_DIR = (
 )
 if not LOCAL_DIR.exists():
     LOCAL_DIR.mkdir(parents=True, exist_ok=True)
+if not (LOCAL_DIR / "sub.json").exists():
+    (LOCAL_DIR / "sub.json").write_text(
+        json.dumps({"群组": [], "私聊": []}, ensure_ascii=False, indent=2), encoding="UTF-8"
+    )
 
 
 def font(size: int):
@@ -126,6 +130,32 @@ async def download(url: str, local: Union[Path, str] = "") -> Union[Path, None]:
             if retryCnt:
                 await asyncio.sleep(2)
     return None
+
+
+async def subHelper(
+    mode: Literal["r", "ag", "ap", "dg", "dp"] = "r", id: Union[str, int] = ""
+) -> Union[Dict, str]:
+    """订阅配置助手，支持读取 ``r(ead)`` 配置、添加 ``a(dd)`` 群 ``g(roup)`` 订阅、添加私聊 ``p(rivate)`` 订阅、删除 ``d(elete)`` 群订阅、删除私聊订阅"""
+    subFile = LOCAL_DIR / "sub.json"
+    subCfg: Dict[str, List] = json.loads(subFile.read_text(encoding="UTF-8"))
+    if mode == "r":
+        return subCfg
+    writeKey = {"g": "群组", "p": "私聊"}[mode[1]]
+    if mode[0] == "a":
+        if int(id) in list(subCfg[writeKey]):
+            return f"已经添加过当前{writeKey}的原神每日材料订阅辣！"
+        subCfg[writeKey].append(int(id))
+        subFile.write_text(
+            json.dumps(subCfg, ensure_ascii=False, indent=2), encoding="UTF-8"
+        )
+    else:
+        if int(id) not in list(subCfg[writeKey]):
+            return f"还没有添加过当前{writeKey}的原神每日材料订阅哦.."
+        subCfg[writeKey].remove(int(id))
+        subFile.write_text(
+            json.dumps(subCfg, ensure_ascii=False, indent=2), encoding="UTF-8"
+        )
+    return f"已{'启用' if mode[0] == 'a' else '禁用'}当前{writeKey}的原神每日材料订阅。"
 
 
 async def queryAmbr(
