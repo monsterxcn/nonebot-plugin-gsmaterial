@@ -68,7 +68,7 @@ cp -r data/gsmaterial /path/to/bot/data/
 ## 使用须知
 
 
- - 插件的数据来源为 [Project Amber](https://ambr.top/chs)，请保证 Bot 与此站点的连接质量。
+ - 插件的数据来源为 [Project Amber](https://ambr.top/chs)，所有未实装角色及武器的数据均由该数据库提供。
    
  - 插件首次启用时，会自动从阿里云 OSS 下载绘图模板，并尝试从 [Project Amber](https://ambr.top/chs) 下载所有角色及武器图片，启动时间由 Bot 与 [Project Amber](https://ambr.top/chs) 的连接质量决定。图片下载至本地后将不再从远程下载，启动时间将大幅缩短。
    
@@ -81,6 +81,8 @@ cp -r data/gsmaterial /path/to/bot/data/
    | `gsmaterial_scheduler` | 否 | `8:10` | 每日材料订阅推送时间 |
    | `gsmaterial_skip_three` | 否 | `True` | 是否忽略三星物品 |
    | `resources_dir` | 否 | `/path/to/bot/data/` | 插件数据缓存目录的父文件夹，包含 `gsmaterial` 文件夹的上级文件夹路径 |
+   
+ - 插件提供的原神每日材料定时推送基于 [@nonebot/plugin-apscheduler](https://github.com/nonebot/plugin-apscheduler)，如果 NoneBot2 启动时插件的定时任务未正常注册，可能需要额外添加该插件的环境变量 `apscheduler_autostart=true` 来使 `scheduler` 自动启动。
 
 
 ## 命令说明
@@ -91,13 +93,13 @@ cp -r data/gsmaterial /path/to/bot/data/
 | 附带参数 | 说明 |
 |:-------|:----|
 | 空 | 返回今日天赋培养与武器突破材料总图 |
-| `订阅` | 启用当前消息来源的每日材料订阅，群组内仅 Bot 管理员、群组创建者、群组管理员可操作 |
-| `订阅删除` | 禁用当前消息来源的每日材料订阅，群组内仅 Bot 管理员、群组创建者、群组管理员可操作 |
 | `天赋` / `角色` | 返回今日天赋培养材料图片 |
 | `武器` | 返回今日武器突破材料图片 |
+| `订阅` | 启用当前消息来源的每日材料订阅，群组内仅 Bot 管理员、群组创建者、群组管理员可操作 |
+| `订阅删除` | 禁用当前消息来源的每日材料订阅，群组内仅 Bot 管理员、群组创建者、群组管理员可操作 |
 
 
 ## 特别鸣谢
 
 
-[@nonebot/nonebot2](https://github.com/nonebot/nonebot2/) | [@Mrs4s/go-cqhttp](https://github.com/Mrs4s/go-cqhttp) | [Project Amber](https://ambr.top/chs)
+[@Mrs4s/go-cqhttp](https://github.com/Mrs4s/go-cqhttp) | [@nonebot/nonebot2](https://github.com/nonebot/nonebot2) | [@nonebot/plugin-apscheduler](https://github.com/nonebot/plugin-apscheduler) | [Project Amber](https://ambr.top/chs)

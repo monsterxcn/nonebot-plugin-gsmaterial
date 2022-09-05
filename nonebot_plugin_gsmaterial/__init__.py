@@ -78,16 +78,16 @@ async def material(bot: Bot, event: MessageEvent, state: T_State):
     )
 
 
-@scheduler.scheduled_job("cron", hour=int(hour), minute=int(minute), second=0)
+@scheduler.scheduled_job("cron", hour=int(hour), minute=int(minute))
 async def dailyMaterialPush():
     bot = get_bot()
     msg = await genrMsg("update")
     message = MessageSegment.image(msg) if "base64" in msg else MessageSegment.text(msg)
     cfg = await subHelper()
     assert isinstance(cfg, Dict)
-    for group in cfg.get("group", []):
+    for group in cfg.get("群组", []):
         await bot.send_group_msg(group_id=group, message=message)
         await async_sleep(randint(5, 10))
-    for private in cfg.get("private", []):
+    for private in cfg.get("私聊", []):
         await bot.send_private_msg(user_id=private, message=message)
         await async_sleep(randint(5, 10))
