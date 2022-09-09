@@ -16,9 +16,10 @@ except ImportError:
     from nonebot.adapters.cqhttp import Bot, MessageSegment  # type: ignore
     from nonebot.adapters.cqhttp.event import MessageEvent, GroupMessageEvent  # type: ignore
 
-from .data_source import genrMsg, subHelper, updateConfig
+from .data_source import genrMsg, genrWeek, subHelper, updateConfig
 
 materialMatcher = on_command("原神材料", aliases={"今日"}, priority=13)
+weeklyMatcher = on_command("原神周本", aliases={"周本"}, priority=13)
 driver = get_driver()
 SCHEDULER_TIME = (
     str(driver.config.gsmaterial_scheduler)
@@ -28,7 +29,8 @@ SCHEDULER_TIME = (
 hour, minute = SCHEDULER_TIME.split(":")
 
 
-@driver.on_startup
+# @driver.on_startup
+@driver.on_bot_connect
 async def materialStartup() -> None:
     logger.info("Genshin Material 正在执行数据更新...")
     await updateConfig()
@@ -74,6 +76,37 @@ async def material(bot: Bot, event: MessageEvent, state: T_State):
     # 获取今日素材图片
     msg = await genrMsg(mtType)
     await materialMatcher.finish(
+        MessageSegment.image(msg) if "base64" in msg else MessageSegment.text(msg)
+    )
+
+
+@weeklyMatcher.handle()
+async def weeklyMaterial(bot: Bot, event: MessageEvent, state: T_State):
+    argsMsg = (  # 获取不包含触发关键词的消息文本
+        str(state["_prefix"]["command_arg"])
+        if "command_arg" in list(state.get("_prefix", {}))
+        else str(event.get_plaintext())
+    )
+    # 处理输入
+    if any(x in argsMsg for x in ["风龙", "风魔龙"]):
+        mtType = "风魔龙·特瓦林"
+    elif any(x in argsMsg for x in ["狼", "北风狼", "王狼"]):
+        mtType = "安德留斯"
+    elif any(x in argsMsg for x in ["公子", "达达利亚", "可达鸭", "鸭鸭"]):
+        mtType = "「公子」"
+    elif any(x in argsMsg for x in ["若托", "若陀", "龙王"]):
+        mtType = "若陀龙王"
+    elif any(x in argsMsg for x in ["女士", "罗莎琳", "魔女"]):
+        mtType = "「女士」"
+    elif any(x in argsMsg for x in ["雷神", "雷电", "雷军", "将军"]):
+        mtType = "祸津御建鸣神命"
+    elif not argsMsg:
+        mtType = "all"
+    else:
+        await weeklyMatcher.finish()
+    # 获取今日素材图片
+    msg = await genrWeek(mtType)
+    await weeklyMatcher.finish(
         MessageSegment.image(msg) if "base64" in msg else MessageSegment.text(msg)
     )
 
