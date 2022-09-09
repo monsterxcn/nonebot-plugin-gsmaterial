@@ -125,7 +125,7 @@ async def download(url: str, local: Union[Path, str] = "") -> Union[Path, None]:
                     userImage.save(f, quality=100)
             return f
         except Exception as e:
-            logger.error(f"安伯计划 {f.name} 资源下载出错 {type(e)}：{e}")
+            logger.error(f"安柏计划 {f.name} 资源下载出错 {type(e)}：{e}")
             retryCnt -= 1
             if retryCnt:
                 await asyncio.sleep(2)
@@ -176,7 +176,7 @@ async def queryAmbr(
 
 
 async def updateConfig() -> None:
-    """从安伯计划更新每日材料配置，顺便在启动时下载必需资源"""
+    """从安柏计划更新每日材料配置，顺便在启动时下载必需资源"""
     # 启动资源下载
     oss = [
         "https://cdn.monsterx.cn/bot/gsmaterial/HYWH-65W.ttf",
@@ -190,7 +190,7 @@ async def updateConfig() -> None:
     await asyncio.gather(*initTask)
     initTask.clear()
 
-    # 获取安伯计划数据
+    # 获取安柏计划数据
     domainRes = await queryAmbr("每日采集")
     updateRes = await queryAmbr("升级材料")
     avatarRes = await queryAmbr("角色列表")
@@ -230,19 +230,23 @@ async def updateConfig() -> None:
                 str(trans[id]["rank"]) + trans[id]["name"] for id in whoUse
             )
             # 下载图片
-            _ = await download(
-                f"https://api.ambr.top/assets/UI/UI_ItemIcon_{materialId}.png",
-                LOCAL_DIR / "item" / f"{material}.png",
-            )
-            _ = {
-                trans[id]["name"]: str(
-                    await download(
+            tmpTasks = [
+                download(
+                    f"https://api.ambr.top/assets/UI/UI_ItemIcon_{materialId}.png",
+                    LOCAL_DIR / "item" / f"{material}.png",
+                )
+            ]
+            tmpTasks.extend(
+                [
+                    download(
                         f"https://api.ambr.top/assets/UI/{trans[id]['icon']}.png",
                         LOCAL_DIR / itemType / f"{trans[id]['name']}.png",
                     )
-                )
-                for id in whoUse
-            }
+                    for id in whoUse
+                ]
+            )
+            await asyncio.gather(*tmpTasks)
+            tmpTasks.clear()
     # 补充时间戳
     res["time"] = int(time())
     (LOCAL_DIR / "config.json").write_text(
