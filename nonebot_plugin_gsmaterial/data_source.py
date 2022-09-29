@@ -227,21 +227,30 @@ async def updateConfig() -> None:
             104174,  # 坚牢黄玉
         ]:
             continue
-        weeklyMaterial.append(mtInfo["name"])
-        weeklyTasks.append(
-            download(
-                f"https://api.ambr.top/assets/UI/UI_ItemIcon_{mtId}.png",
-                LOCAL_DIR / "item" / f"{mtInfo['name']}.png",
-            )
+        weeklyMaterial.append(
+            mtInfo["name"] if mtInfo["name"] != "？？？" else str(mtInfo["id"])
         )
+        if mtInfo["icon"]:
+            weeklyTasks.append(
+                download(
+                    f"https://api.ambr.top/assets/UI/{mtInfo['icon']}",
+                    LOCAL_DIR / "item" / f"{mtInfo['name']}.png",
+                )
+            )
     await asyncio.gather(*weeklyTasks)
     weeklyTasks.clear()
+    # 先填充已定义的周本下各个材料名称
     res["weekly"] = {
         bossKey[0]: {
             materialKey: "" for materialKey in weeklyMaterial[bIdx * 3 : (bIdx + 1) * 3]
         }
         for bIdx, bossKey in enumerate(weeklyBoss)
     }
+    # 在补充未实装内容到名为 "？？？" 的周本下
+    if len(weeklyMaterial) > len(weeklyBoss * 3):
+        res["weekly"]["？？？"] = {
+            betaKey: "" for betaKey in weeklyMaterial[len(weeklyBoss * 3) :]
+        }
     for avatar in updateRes["avatar"]:
         # 排除旅行者
         if not str(avatar).isdigit():
@@ -256,16 +265,32 @@ async def updateConfig() -> None:
             }
         )[-1]
         mtName = materialRes["items"][mtKey]["name"]
-        bossKey = weeklyBoss[int(weeklyMaterial.index(mtName) / 3)]
+        bossKey = (
+            weeklyBoss[int(weeklyMaterial.index(mtName) / 3)]
+            if mtName in weeklyMaterial
+            else ["？？？", "尚未实装周本"]
+        )
         # 以 "5琴,5迪卢克,...,[rank][name]" 形式写入配置
-        res["weekly"][bossKey[0]][mtName] += (
-            ("," if res["weekly"][bossKey[0]][mtName] else "")
+        res["weekly"][bossKey[0]][mtName if mtName != "？？？" else mtKey] += (
+            (
+                ","
+                if res["weekly"][bossKey[0]][mtName if mtName != "？？？" else mtKey]
+                else ""
+            )
             + f"{avatarRes['items'][avatar]['rank']}{avatarRes['items'][avatar]['name']}"
         )
 
-    # 生成周本图片缓存
-    logger.debug("周本材料图片缓存生成...")
-    await drawWeeks(res)
+    # 生成周本图片缓存，仅周本配置更新时重绘
+    oldWeekData = (
+        dict(json.loads((LOCAL_DIR / "config.json").read_text(encoding="UTF-8"))).get(
+            "weekly"
+        )
+        if (LOCAL_DIR / "config.json").exists()
+        else {}
+    )
+    if oldWeekData != res["weekly"]:
+        logger.debug("周本材料图片缓存生成...")
+        await drawWeeks(res)
 
     # 补充时间戳
     res["time"] = int(time())

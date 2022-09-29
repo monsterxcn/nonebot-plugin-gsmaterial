@@ -9,7 +9,7 @@ from PIL import Image, ImageDraw, ImageFont
 from .config import LOCAL_DIR, SKIP_THREE
 
 
-def font(size: int):
+def font(size: int) -> ImageFont.FreeTypeFont:
     """Pillow 绘制字体设置"""
     return ImageFont.truetype(str(LOCAL_DIR / "draw" / "HYWH-65W.ttf"), size=size)
 
@@ -151,11 +151,15 @@ async def drawItems(config: Dict, day: int, need: List) -> Image.Image:
 
 
 async def drawWeeks(
-    config: Dict, need: List = ["风魔龙·特瓦林", "安德留斯", "「公子」", "若陀龙王", "「女士」", "祸津御建鸣神命"]
+    config: Dict,
+    need: List = ["风魔龙·特瓦林", "安德留斯", "「公子」", "若陀龙王", "「女士」", "祸津御建鸣神命", "？？？"],
 ) -> Image.Image:
     """Pillow 绘制原神周本材料图片"""
     imgs = []
     for boss in need:
+        # 排除无内容的周本
+        if not config["weekly"].get(boss):
+            continue
         # 计算待绘制图片的高度、宽度，一行绘制全部角色
         thisCfg: Dict = config["weekly"][boss]
         bossSize = font(50).getsize(boss)
@@ -193,10 +197,12 @@ async def drawWeeks(
                     (70, 70), Image.LANCZOS
                 )
                 img.paste(groupImg, (25, startH), groupImg)
+                titleStart = 110
             except:  # noqa: E722
+                titleStart = 25
                 pass
             ImageDraw.Draw(img).text(
-                (110, startH + int((70 - font(36).getsize("高")[1]) / 2)),
+                (titleStart, startH + int((70 - font(36).getsize("高")[1]) / 2)),
                 key,
                 font=font(36),
                 fill="#333",

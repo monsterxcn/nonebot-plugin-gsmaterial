@@ -78,9 +78,9 @@ cp -r data/gsmaterial /path/to/bot/data/
    
    | 环境变量 | 必需 | 默认 | 说明 |
    |:-------|:----:|:-----|:----|
-   | `gsmaterial_scheduler` | 否 | `8:10` | 每日材料订阅推送时间 |
-   | `gsmaterial_skip_three` | 否 | `True` | 是否忽略三星物品 |
-   | `resources_dir` | 否 | `/path/to/bot/data/` | 插件数据缓存目录的父文件夹，包含 `gsmaterial` 文件夹的上级文件夹路径 |
+   | `gsmaterial_scheduler` | 否 | `"8:10"` | 每日材料订阅推送时间 |
+   | `gsmaterial_skip_three` | 否 | `true` | 是否忽略三星物品 |
+   | `resources_dir` | 否 | `"/path/to/bot/data/"` | 插件数据缓存目录的父文件夹，包含 `gsmaterial` 文件夹的上级文件夹路径 |
    
  - 插件提供的原神每日材料定时推送基于 [@nonebot/plugin-apscheduler](https://github.com/nonebot/plugin-apscheduler)，如果 NoneBot2 启动时插件的定时任务未正常注册，可能需要额外添加该插件的环境变量 `apscheduler_autostart=true` 来使 `scheduler` 自动启动。
 
@@ -113,7 +113,7 @@ cp -r data/gsmaterial /path/to/bot/data/
    | `女士` / `罗莎琳` / `魔女` | 返回 *「女士」* 掉落材料图片 |
    | `雷神` / `雷电` / `雷军` / `将军` | 返回 *祸津御建鸣神命* 掉落材料图片 |
    
-   ![周本总图](https://user-images.githubusercontent.com/22407052/189299885-0863eedf-26f5-4a09-80fb-10726e89c2e9.png)
+   ![周本总图](https://user-images.githubusercontent.com/22407052/192950472-76da7edc-e687-4480-b8c3-a242df8a459d.png)
 
 
 ## 特别鸣谢
