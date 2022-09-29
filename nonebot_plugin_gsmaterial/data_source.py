@@ -280,6 +280,19 @@ async def updateConfig() -> None:
             + f"{avatarRes['items'][avatar]['rank']}{avatarRes['items'][avatar]['name']}"
         )
 
+    # 生成每日图片缓存，仅每日配置更新时重绘
+    needUpdate = True
+    if (LOCAL_DIR / "config.json").exists():
+        oldData = dict(
+            json.loads((LOCAL_DIR / "config.json").read_text(encoding="UTF-8"))
+        )
+        needUpdate = any(oldData.get(key) != res[key] for key in ["avatar", "weapon"])
+    if needUpdate:
+        logger.debug("每日材料图片缓存生成...")
+        dailyTasks = [drawItems(res, day, ["avatar", "weapon"]) for day in [1, 2, 3]]
+        await asyncio.gather(*dailyTasks)
+        dailyTasks.clear()
+
     # 生成周本图片缓存，仅周本配置更新时重绘
     oldWeekData = (
         dict(json.loads((LOCAL_DIR / "config.json").read_text(encoding="UTF-8"))).get(

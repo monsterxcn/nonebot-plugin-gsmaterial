@@ -133,7 +133,7 @@ async def drawItems(config: Dict, day: int, need: List) -> Image.Image:
 
         # 全部绘制完毕，保存图片
         img.save(LOCAL_DIR / f"day{day}.{itemType}.png")
-        logger.info(f"素材图片生成完毕 day{day}.{itemType}.png")
+        logger.debug(f"素材图片生成完毕 day{day}.{itemType}.png")
         imgs.append(img)
 
     # 仅有一张图片时直接返回
@@ -146,7 +146,7 @@ async def drawItems(config: Dict, day: int, need: List) -> Image.Image:
     for idx, img in enumerate(imgs):
         merge.paste(img, (1048 * idx, 0))  # int((height - img.size[1]) / 2)
     merge.save(LOCAL_DIR / f"day{day}.all.png")
-    logger.info(f"素材图片合并完毕 day{day}.all.png")
+    logger.debug(f"素材图片合并完毕 day{day}.all.png")
     return merge
 
 

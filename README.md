@@ -18,7 +18,7 @@
 </p></br>
 
 
-| ![示例](https://user-images.githubusercontent.com/22407052/188147520-b49eb450-b0e2-4982-b9f5-6f0673da4021.png) |
+| ![示例](https://user-images.githubusercontent.com/22407052/192959337-beb894be-81c1-41d4-9cc3-3324eed16f97.png) |
 |:--:|
 
 
