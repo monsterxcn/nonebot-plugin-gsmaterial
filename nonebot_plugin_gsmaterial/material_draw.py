@@ -65,6 +65,9 @@ async def drawItems(config: Dict, day: int, need: List) -> Image.Image:
         # 绘制每个分组
         startH = 148
         for key in thisCfg:
+            # 排除无内容的材料（thisCfg[key] == ""
+            if not thisCfg[key]:
+                continue
             # 绘制分组所属材料的图片
             try:
                 bgImg = Image.open(
@@ -186,6 +189,9 @@ async def drawWeeks(
         # 绘制每个分组
         startH = 148
         for key in thisCfg:
+            # 排除无内容的周本材料（thisCfg[key] == ""
+            if not thisCfg[key]:
+                continue
             # 绘制分组所属材料的图片
             try:
                 bgImg = Image.open(LOCAL_DIR / "draw" / "bg5.140.png")
