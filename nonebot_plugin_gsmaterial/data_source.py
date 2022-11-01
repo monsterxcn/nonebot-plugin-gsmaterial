@@ -209,6 +209,7 @@ async def updateConfig() -> None:
         ["若陀龙王", "被封印的岩龙之王", "「伏龙树」之底", "追忆：摇撼山岳之龙"],
         ["「女士」", "愚人众执行官第八席", "鸣神岛·天守", "追忆：红莲的真剑试合"],
         ["祸津御建鸣神命", "雷电之稻妻殿", "梦想乐土之殁", "追忆：永恒的守护者"],
+        ["「正机之神」", "七叶寂照秘密主", "？？？", "？？？"],
     ]
     weeklyMaterial, weeklyTasks = [], []
     for mtId, mtInfo in materialRes["items"].items():
@@ -233,7 +234,7 @@ async def updateConfig() -> None:
         if mtInfo["icon"]:
             weeklyTasks.append(
                 download(
-                    f"https://api.ambr.top/assets/UI/{mtInfo['icon']}",
+                    f"https://api.ambr.top/assets/UI/{mtInfo['icon']}.png",
                     LOCAL_DIR / "item" / f"{mtInfo['name']}.png",
                 )
             )
@@ -265,9 +266,10 @@ async def updateConfig() -> None:
             }
         )[-1]
         mtName = materialRes["items"][mtKey]["name"]
+        weeklyBossIdx = weeklyMaterial.index(mtName) // 3
         bossKey = (
-            weeklyBoss[int(weeklyMaterial.index(mtName) / 3)]
-            if mtName in weeklyMaterial
+            weeklyBoss[weeklyBossIdx]
+            if weeklyBossIdx < len(weeklyBoss)
             else ["？？？", "尚未实装周本"]
         )
         # 以 "5琴,5迪卢克,...,[rank][name]" 形式写入配置

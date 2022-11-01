@@ -95,9 +95,7 @@ async def drawItems(config: Dict, day: int, need: List) -> Image.Image:
             # 绘制当前分组的所有角色/武器
             startH += 90
             drawX, drawY, cnt = 25, startH, 0
-            drawOrder = sorted(
-                thisCfg[key].split(","), key=lambda x: x[0], reverse=True
-            )
+            drawOrder = sorted(thisCfg[key].split(","), key=lambda x: x[0], reverse=True)
             for item in drawOrder:
                 rank, name = item[0], item[1:]  # 5雷电将军,5八重神子,...
                 # 角色/武器图片
@@ -155,7 +153,7 @@ async def drawItems(config: Dict, day: int, need: List) -> Image.Image:
 
 async def drawWeeks(
     config: Dict,
-    need: List = ["风魔龙·特瓦林", "安德留斯", "「公子」", "若陀龙王", "「女士」", "祸津御建鸣神命", "？？？"],
+    need: List = ["风魔龙·特瓦林", "安德留斯", "「公子」", "若陀龙王", "「女士」", "祸津御建鸣神命", "「正机之神」", "？？？"],
 ) -> Image.Image:
     """Pillow 绘制原神周本材料图片"""
     imgs = []
@@ -165,9 +163,10 @@ async def drawWeeks(
             continue
         # 计算待绘制图片的高度、宽度，一行绘制全部角色
         thisCfg: Dict = config["weekly"][boss]
-        bossSize = font(50).getsize(boss)
+        bossSize = font(50).getbbox(boss)
         totalW = 50 + max(
-            bossSize[0],
+            bossSize[-2],
+            max([(font(36).getlength(key) + 135) for key in thisCfg if thisCfg[key]]),
             max([len(thisCfg[key].split(",")) for key in thisCfg if thisCfg[key]])
             * (128 + 17)
             - 17,
@@ -176,11 +175,11 @@ async def drawWeeks(
         totalH = 148 + len(thisCfg) * 90 + lineCnt * (130 + 40 + 20) + 60
 
         # 开始绘制！
-        img = Image.new("RGBA", (totalW, totalH), "#FBFBFB")
+        img = Image.new("RGBA", (int(totalW), totalH), "#FBFBFB")
 
         # 绘制 Header 文字
         ImageDraw.Draw(img).text(
-            (int((totalW - bossSize[0]) / 2), int((148 - bossSize[1]) / 2)),
+            (int((totalW - bossSize[-2]) / 2), int((148 - bossSize[-1]) / 2)),
             boss,
             font=font(50),
             fill="black",
@@ -217,9 +216,7 @@ async def drawWeeks(
             # 绘制当前分组的所有角色
             startH += 90
             drawX, drawY = 25, startH
-            drawOrder = sorted(
-                thisCfg[key].split(","), key=lambda x: x[0], reverse=True
-            )
+            drawOrder = sorted(thisCfg[key].split(","), key=lambda x: x[0], reverse=True)
             for item in drawOrder:
                 rank, name = item[0], item[1:]  # 5琴,5迪卢克,...
                 # 角色图片
