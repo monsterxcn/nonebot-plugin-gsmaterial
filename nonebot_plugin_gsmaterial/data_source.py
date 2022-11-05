@@ -4,6 +4,7 @@ from datetime import datetime, timedelta
 from io import BytesIO
 from pathlib import Path
 from time import time
+from traceback import format_exc
 from typing import Dict, List, Literal, Union
 
 from httpx import AsyncClient, HTTPError
@@ -45,7 +46,9 @@ async def download(url: str, local: Union[Path, str] = "") -> Union[Path, None]:
         f = local
     # 本地文件存在时便不再下载
     if f.exists():
-        return f
+        # 测试角色图像为白色问号，该图片 st_size = 5105，小于 6KB 均视为无效图片
+        if not (f.name.lower().endswith("png") and f.stat().st_size < 6144):
+            return f
     # 远程文件下载
     client = AsyncClient()
     retryCnt = 3
@@ -58,6 +61,7 @@ async def download(url: str, local: Union[Path, str] = "") -> Union[Path, None]:
                         async for chunk in res.aiter_bytes():
                             fb.write(chunk)
             else:
+                logger.info(f"安柏计划 {f.name} 正在下载\n>>>>> {url}")
                 async with AsyncClient() as client:
                     res = await client.get(
                         url,
@@ -74,7 +78,7 @@ async def download(url: str, local: Union[Path, str] = "") -> Union[Path, None]:
                     userImage.save(f, quality=100)
             return f
         except Exception as e:
-            logger.error(f"安柏计划 {f.name} 资源下载出错 {type(e)}：{e}")
+            logger.error(f"安柏计划 {f.name} 资源下载出错 {e.__class__.__name__}\n{format_exc()}")
             retryCnt -= 1
             if retryCnt:
                 await asyncio.sleep(2)
@@ -209,7 +213,7 @@ async def updateConfig() -> None:
         ["若陀龙王", "被封印的岩龙之王", "「伏龙树」之底", "追忆：摇撼山岳之龙"],
         ["「女士」", "愚人众执行官第八席", "鸣神岛·天守", "追忆：红莲的真剑试合"],
         ["祸津御建鸣神命", "雷电之稻妻殿", "梦想乐土之殁", "追忆：永恒的守护者"],
-        ["「正机之神」", "七叶寂照秘密主", "？？？", "？？？"],
+        ["「正机之神」", "七叶寂照秘密主", "净琉璃工坊", "追忆：七叶中尊琉璃坛"],
     ]
     weeklyMaterial, weeklyTasks = [], []
     for mtId, mtInfo in materialRes["items"].items():
@@ -339,12 +343,14 @@ async def genrMsg(needType: Literal["avatar", "weapon", "all", "update"]) -> str
         img = await drawItems(config, day, needList)
         return await toBase64(img)
     except Exception as e:
-        logger.error(f"原神材料图片生成出错 {type(e)}: {e}")
+        logger.error(f"原神材料图片生成出错 {e.__class__.__name__}\n{format_exc()}")
         return f"[{e.__class__.__name__}]原神材料图片生成失败"
 
 
 async def genrWeek(
-    needType: Literal["all", "风魔龙·特瓦林", "安德留斯", "「公子」", "若陀龙王", "「女士」", "祸津御建鸣神命"]
+    needType: Literal[
+        "all", "风魔龙·特瓦林", "安德留斯", "「公子」", "若陀龙王", "「女士」", "祸津御建鸣神命", "「正机之神」"
+    ]
 ) -> str:
     """原神周本材料图片生成入口"""
     # 存在图片缓存且非更新任务时使用缓存
@@ -366,5 +372,5 @@ async def genrWeek(
     #     img = await drawWeeks(config, needList)
     #     return await toBase64(img)
     # except Exception as e:
-    #     logger.error(f"原神材料图片生成出错 {type(e)}: {e}")
+    #     logger.error(f"原神材料图片生成出错 {e.__class__.__name__}\n{format_exc()}")
     #     return f"[{e.__class__.__name__}]原神材料图片生成失败"

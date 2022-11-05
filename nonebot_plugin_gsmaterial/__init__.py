@@ -100,6 +100,8 @@ async def weeklyMaterial(bot: Bot, event: MessageEvent, state: T_State):
         mtType = "「女士」"
     elif any(x in argsMsg for x in ["雷神", "雷电", "雷军", "将军"]):
         mtType = "祸津御建鸣神命"
+    elif any(x in argsMsg for x in ["正机", "散兵", "伞兵", "秘密主"]):
+        mtType = "「正机之神」"
     elif not argsMsg:
         mtType = "all"
     else:
