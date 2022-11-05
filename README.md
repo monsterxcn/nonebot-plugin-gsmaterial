@@ -112,8 +112,9 @@ cp -r data/gsmaterial /path/to/bot/data/
    | `若托` / `若陀` / `龙王` | 返回 *若陀龙王* 掉落材料图片 |
    | `女士` / `罗莎琳` / `魔女` | 返回 *「女士」* 掉落材料图片 |
    | `雷神` / `雷电` / `雷军` / `将军` | 返回 *祸津御建鸣神命* 掉落材料图片 |
+   | `正机` / `散兵` / `伞兵` / `秘密主` | 返回 *「正机之神」* 掉落材料图片 |
    
-   ![周本总图](https://user-images.githubusercontent.com/22407052/192950472-76da7edc-e687-4480-b8c3-a242df8a459d.png)
+   ![周本总图](https://user-images.githubusercontent.com/22407052/200097973-5d3f886b-e0a9-4cbd-a75b-c0f348c3c9aa.PNG)
 
 
 ## 特别鸣谢
