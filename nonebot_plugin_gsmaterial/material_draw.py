@@ -1,27 +1,41 @@
-from base64 import b64encode
+from copy import deepcopy
 from io import BytesIO
 from math import ceil
-from typing import Dict, List
+from pathlib import Path
+from typing import Dict, List, Union
 
-from nonebot.log import logger
 from PIL import Image, ImageDraw, ImageFont
 
-from .config import LOCAL_DIR, SKIP_THREE
+from nonebot.log import logger
+from nonebot.utils import run_sync
+
+from .config import CONFIG_DIR, DL_CFG, SKIP_THREE
+
+RESAMPLING = getattr(Image, "Resampling", Image).LANCZOS
 
 
 def font(size: int) -> ImageFont.FreeTypeFont:
     """Pillow 绘制字体设置"""
-    return ImageFont.truetype(str(LOCAL_DIR / "draw" / "HYWH-65W.ttf"), size=size)
+
+    return ImageFont.truetype(
+        str(CONFIG_DIR / "draw" / "SmileySans-Oblique.ttf"), size=size  # HYWH-65W
+    )
 
 
-async def circleCorner(markImg: Image.Image, radius: int = 30) -> Image.Image:
+@run_sync
+def circle_corner(mark_img: Image.Image, radius: int = 30) -> Image.Image:
     """图片圆角处理"""
-    markImg = markImg.convert("RGBA")
-    w, h = markImg.size
+
+    mark_img = mark_img.convert("RGBA")
+    scale, radius = 5, radius * 5
+    mark_img = mark_img.resize(
+        (mark_img.size[0] * scale, mark_img.size[1] * scale), RESAMPLING
+    )
+    w, h = mark_img.size
     circle = Image.new("L", (radius * 2, radius * 2), 0)
     draw = ImageDraw.Draw(circle)
     draw.ellipse((0, 0, radius * 2, radius * 2), fill=255)
-    alpha = Image.new("L", markImg.size, 255)
+    alpha = Image.new("L", mark_img.size, 255)
     alpha.paste(circle.crop((0, 0, radius, radius)), (0, 0))
     alpha.paste(circle.crop((radius, 0, radius * 2, radius)), (w - radius, 0))
     alpha.paste(
@@ -29,249 +43,254 @@ async def circleCorner(markImg: Image.Image, radius: int = 30) -> Image.Image:
         (w - radius, h - radius),
     )
     alpha.paste(circle.crop((0, radius, radius, radius * 2)), (0, h - radius))
-    markImg.putalpha(alpha)
-    return markImg
+    mark_img.putalpha(alpha)
+    return mark_img.resize((int(w / scale), int(h / scale)), RESAMPLING)
 
 
-async def toBase64(pic: Image.Image) -> str:
-    """``Image`` 图像转 Base64 字符串"""
-    buf = BytesIO()
-    pic.convert("RGB").save(buf, format="PNG", quality=100)
-    logger.debug(f"图片大小 {buf.tell()} 字节")
-    base64_str = b64encode(buf.getbuffer()).decode()
-    return "base64://" + base64_str
+async def draw_materials(config: Dict, needs: List[str], day: int = 0) -> Path:
+    """原神秘境材料图片绘制"""
 
+    cache_dir = CONFIG_DIR / "cache"
+    is_weekly, img_and_path = day == 0, []
+    rank_bg = {
+        "3": Image.open(CONFIG_DIR / "draw/bg3.140.png"),
+        "4": Image.open(CONFIG_DIR / "draw/bg4.140.png"),
+        "5": Image.open(CONFIG_DIR / "draw/bg5.140.png"),
+    }
+    for need in needs:
+        raw_config = config["weekly" if is_weekly else need][
+            need if is_weekly else str(day)
+        ]
+        draw_config = {  # 剔除 3 星武器
+            key: ",".join(s for s in value.split(",") if not SKIP_THREE or s[0] != "3")
+            for key, value in dict(raw_config).items()
+            if value
+        }
 
-async def drawItems(config: Dict, day: int, need: List) -> Image.Image:
-    """Pillow 绘制原神每日材料图片"""
-    imgs = []
-    for itemType in need:
-        # 计算待绘制图片的高度，每行绘制 7 个角色或武器
-        thisCfg = config[itemType][str(day)]
-        if SKIP_THREE:
-            thisCfg = {  # 剔除 3 星武器
-                key: ",".join(s for s in value.split(",") if s[0] != "3")
-                for key, value in dict(thisCfg).items()
-            }
-        lineCnt = sum(ceil(len(thisCfg[key].split(",")) / 7) for key in thisCfg)
-        totalH = 148 + len(thisCfg) * 90 + lineCnt * (130 + 40 + 20) + 60
+        # 计算待绘制图片的宽度
+        title = (
+            need
+            if is_weekly
+            else {1: "周一/周四 {}材料", 2: "周二/周五 {}材料", 3: "周三/周六 {}材料"}[day].format(
+                "天赋培养" if need == "avatar" else "武器突破"
+            )
+        )
+        title_bbox = font(50).getbbox(title)
+        total_width = max(
+            title_bbox[-2] + 50,
+            max([(font(40).getlength(_key.split("-")[0]) + 150) for _key in draw_config]),
+            max([len(draw_config[_key].split(",")[:6]) for _key in draw_config])
+            * (170 + 10)
+            + 10,
+        )
+
+        # 计算待绘制图片的高度，每行绘制 6 个角色或武器
+        line_cnt = sum(
+            ceil(len(draw_config[_key].split(",")) / 6) for _key in draw_config
+        )
+        total_height = 150 + len(draw_config) * 90 + line_cnt * (160 + 40 + 20)
 
         # 开始绘制！
-        img = Image.new("RGBA", (1048, totalH), "#FBFBFB")
+        img = Image.new("RGBA", (total_width, total_height), "#FBFBFB")
+        drawer = ImageDraw.Draw(img)
 
-        # 粘贴 Header 图片
-        img.paste(Image.open(LOCAL_DIR / "draw" / f"{itemType}.png"), (0, 0))
+        # 绘制标题
+        drawer.text(
+            (int((total_width - title_bbox[-2]) / 2), int((150 - title_bbox[-1]) / 2)),
+            title,
+            fill="black",
+            font=font(50),
+            stroke_fill="grey",
+            stroke_width=2,
+        )
 
         # 绘制每个分组
-        startH = 148
-        for key in thisCfg:
-            # 排除无内容的材料（thisCfg[key] == ""
-            if not thisCfg[key]:
-                continue
+        startH = 150
+        for key in draw_config:
             # 绘制分组所属材料的图片
+            key_name, key_id = key.split("-")
             try:
-                bgImg = Image.open(
-                    LOCAL_DIR
-                    / "draw"
-                    / f"bg{'4' if itemType == 'avatar' else '5'}.140.png"
+                _key_icon = deepcopy(rank_bg["4" if need == "avatar" else "5"])
+                _key_icon_path = DL_CFG["item"]["dir"] / "{}.{}".format(
+                    key_id if DL_CFG["item"]["file"] == "id" else key_name,
+                    DL_CFG["item"]["fmt"],
                 )
-                keyImg = Image.open(LOCAL_DIR / "item" / f"{key}.png").resize(
-                    (140, 140), Image.LANCZOS
+                _key_icon_img = Image.open(_key_icon_path).resize((140, 140), RESAMPLING)
+                _key_icon.paste(_key_icon_img, (0, 0), _key_icon_img)
+                _key_icon = (await circle_corner(_key_icon, radius=30)).resize(
+                    (80, 80), RESAMPLING
                 )
-                bgImg.paste(keyImg, (0, 0), keyImg)
-                groupImg = (await circleCorner(bgImg, radius=30)).resize(
-                    (70, 70), Image.LANCZOS
-                )
-                img.paste(groupImg, (25, startH), groupImg)
+                img.paste(_key_icon, (25, startH), _key_icon)
             except:  # noqa: E722
                 pass
+            # 绘制分组所属材料的名称
             ImageDraw.Draw(img).text(
-                (110, startH + int((70 - font(36).getsize("高")[1]) / 2)),
-                key,
-                font=font(36),
+                (125, startH + int((80 - font(40).getbbox("高")[-1]) / 2)),
+                key_name,
+                font=font(40),
                 fill="#333",
             )
 
             # 绘制当前分组的所有角色/武器
             startH += 90
-            drawX, drawY, cnt = 25, startH, 0
-            drawOrder = sorted(thisCfg[key].split(","), key=lambda x: x[0], reverse=True)
-            for item in drawOrder:
-                rank, name = item[0], item[1:]  # 5雷电将军,5八重神子,...
+            draw_X, draw_Y, cnt = 10, startH, 0
+            draw_order = sorted(
+                draw_config[key].split(","), key=lambda x: x[0], reverse=True
+            )
+            for item in draw_order:
+                # 5雷电将军10000052,5八重神子10000058,...
+                _split = -5 if need == "weapon" else -8
+                rank, name, this_id = item[0], item[1:_split], item[_split:]
                 # 角色/武器图片
                 try:
-                    bgImg = Image.open(LOCAL_DIR / "draw" / f"bg{rank}.140.png")
-                    itemImg = Image.open(LOCAL_DIR / itemType / f"{name}.png").resize(
-                        (140, 140), Image.LANCZOS
+                    _dl_cfg_key = "avatar" if need not in ["avatar", "weapon"] else need
+                    _icon = deepcopy(rank_bg[str(rank)])
+                    _icon_path = DL_CFG[_dl_cfg_key]["dir"] / "{}.{}".format(
+                        this_id if DL_CFG[_dl_cfg_key]["file"] == "id" else name,
+                        DL_CFG[_dl_cfg_key]["fmt"],
                     )
-                    bgImg.paste(itemImg, (0, 0), itemImg)
-                    itemImg = (await circleCorner(bgImg, radius=15)).resize(
-                        (128, 128), Image.LANCZOS
+                    _icon_img = Image.open(_icon_path).resize((140, 140), RESAMPLING)
+                    _icon.paste(_icon_img, (0, 0), _icon_img)
+                    _icon = (await circle_corner(_icon, radius=10)).resize(
+                        (150, 150), RESAMPLING  # 140
                     )
-                    img.paste(itemImg, (drawX, drawY), itemImg)
+                    img.paste(_icon, (draw_X + 10, draw_Y + 10), _icon)
                 except:  # noqa: E722
                     pass
-                # 角色/武器名称，根据名称长度自动调整绘制字号
-                s = 30 if len(name) <= 4 else 24
+                # 角色/武器名称
+                name_bbox = font(30).getbbox(name)
                 ImageDraw.Draw(img).text(
                     (
-                        int(drawX + (128 - font(s).getsize(name)[0]) / 2),
-                        int(drawY + 130 + (40 - font(s).getsize("高")[1]) / 2),
+                        int(draw_X + (170 - name_bbox[-2]) / 2),
+                        int(draw_Y + 160 + (40 - name_bbox[-1]) / 2),
                     ),
                     name,
-                    font=font(s),
+                    font=font(30),
                     fill="#333",
                 )
-                # 按照 7 个角色/武器一行绘制
-                drawX += 128 + 17
+                # 按照 6 个角色/武器一行绘制
+                draw_X += 170 + 10
                 cnt += 1
-                if cnt == 7:
-                    drawX, cnt = 25, 0
-                    drawY += 130 + 40 + 20
+                if cnt == 6:
+                    draw_X, cnt = 10, 0
+                    draw_Y += 160 + 40 + 20
 
             # 一组角色/武器绘制完毕
-            startH += (130 + 40 + 20) * ceil(len(thisCfg[key].split(",")) / 7) + 20
+            startH += (160 + 40 + 20) * ceil(len(draw_config[key].split(",")) / 6)
 
         # 全部绘制完毕，保存图片
-        img.save(LOCAL_DIR / f"day{day}.{itemType}.png")
-        logger.debug(f"素材图片生成完毕 day{day}.{itemType}.png")
-        imgs.append(img)
+        cache_file = cache_dir / (
+            f"weekly.{need}.jpg" if is_weekly else f"daily.{day}.{need}.jpg"
+        )
+        img.convert("RGB").save(cache_file)
+        logger.debug(f"{'周本' if is_weekly else '每日'}材料图片生成完毕 {cache_file.name}")
+        img_and_path.append([img, cache_file])
 
     # 仅有一张图片时直接返回
-    if len(imgs) == 1:
-        return imgs[0]
+    if len(img_and_path) == 1:
+        return img_and_path[0][1]
 
     # 存在多张图片时横向合并
-    height = max(imgs[0].size[1], imgs[1].size[1])
-    merge = Image.new("RGBA", (1048 * 2, height), "#FBFBFB")
-    for idx, img in enumerate(imgs):
-        merge.paste(img, (1048 * idx, 0))  # int((height - img.size[1]) / 2)
-    merge.save(LOCAL_DIR / f"day{day}.all.png")
-    logger.debug(f"素材图片合并完毕 day{day}.all.png")
-    return merge
+    width = sum([i[0].size[0] for i in img_and_path]) + (len(img_and_path) - 1) * 25
+    _weight, height = 0, max([i[0].size[1] for i in img_and_path])
+    merge = Image.new("RGBA", (width, height), "#FBFBFB")
+    for i in img_and_path:
+        merge.paste(i[0], (_weight, 0), i[0])
+        _weight += i[0].size[0] + 25
+    merge_file = cache_dir / ("weekly.all.jpg" if is_weekly else f"daily.{day}.all.jpg")
+    merge.convert("RGB").save(merge_file)
+    logger.info(f"{'周本' if is_weekly else '每日'}材料图片合并完毕 {merge_file.name}")
+    return merge_file
 
 
-async def drawWeeks(
-    config: Dict,
-    need: List = ["风魔龙·特瓦林", "安德留斯", "「公子」", "若陀龙王", "「女士」", "祸津御建鸣神命", "「正机之神」", "？？？"],
-) -> Image.Image:
-    """Pillow 绘制原神周本材料图片"""
-    imgs = []
-    for boss in need:
-        # 排除无内容的周本
-        if not config["weekly"].get(boss):
-            continue
-        # 计算待绘制图片的高度、宽度，一行绘制全部角色
-        thisCfg: Dict = config["weekly"][boss]
-        bossSize = font(50).getbbox(boss)
-        totalW = 50 + max(
-            bossSize[-2],
-            max([(font(36).getlength(key) + 135) for key in thisCfg if thisCfg[key]]),
-            max([len(thisCfg[key].split(",")) for key in thisCfg if thisCfg[key]])
-            * (128 + 17)
-            - 17,
-        )
-        lineCnt = sum(1 for key in thisCfg if thisCfg[key])
-        totalH = 148 + len(thisCfg) * 90 + lineCnt * (130 + 40 + 20) + 60
+async def draw_calculator(name: str, target: Dict, calculate: Dict) -> Union[bytes, str]:
+    """原神计算器材料图片绘制"""
+    height = sum(80 + ceil(len(v) / 2) * 70 + 20 for _, v in calculate.items() if v) + 20
+    img = Image.new("RGBA", (800, height), "#FEFEFE")
+    drawer = ImageDraw.Draw(img)
 
-        # 开始绘制！
-        img = Image.new("RGBA", (int(totalW), totalH), "#FBFBFB")
-
-        # 绘制 Header 文字
-        ImageDraw.Draw(img).text(
-            (int((totalW - bossSize[-2]) / 2), int((148 - bossSize[-1]) / 2)),
-            boss,
-            font=font(50),
-            fill="black",
-        )
-
-        # 绘制每个分组
-        startH = 148
-        for key in thisCfg:
-            # 排除无内容的周本材料（thisCfg[key] == ""
-            if not thisCfg[key]:
-                continue
-            # 绘制分组所属材料的图片
-            try:
-                bgImg = Image.open(LOCAL_DIR / "draw" / "bg5.140.png")
-                keyImg = Image.open(LOCAL_DIR / "item" / f"{key}.png").resize(
-                    (140, 140), Image.LANCZOS
-                )
-                bgImg.paste(keyImg, (0, 0), keyImg)
-                groupImg = (await circleCorner(bgImg, radius=30)).resize(
-                    (70, 70), Image.LANCZOS
-                )
-                img.paste(groupImg, (25, startH), groupImg)
-                titleStart = 110
-            except:  # noqa: E722
-                titleStart = 25
-                pass
-            ImageDraw.Draw(img).text(
-                (titleStart, startH + int((70 - font(36).getsize("高")[1]) / 2)),
-                key,
-                font=font(36),
-                fill="#333",
-            )
-
-            # 绘制当前分组的所有角色
-            startH += 90
-            drawX, drawY = 25, startH
-            drawOrder = sorted(thisCfg[key].split(","), key=lambda x: x[0], reverse=True)
-            for item in drawOrder:
-                rank, name = item[0], item[1:]  # 5琴,5迪卢克,...
-                # 角色图片
-                try:
-                    bgImg = Image.open(LOCAL_DIR / "draw" / f"bg{rank}.140.png")
-                    itemImg = Image.open(LOCAL_DIR / "avatar" / f"{name}.png").resize(
-                        (140, 140), Image.LANCZOS
-                    )
-                    bgImg.paste(itemImg, (0, 0), itemImg)
-                    itemImg = (await circleCorner(bgImg, radius=15)).resize(
-                        (128, 128), Image.LANCZOS
-                    )
-                    img.paste(itemImg, (drawX, drawY), itemImg)
-                except:  # noqa: E722
-                    pass
-                # 角色/武器名称，根据名称长度自动调整绘制字号
-                s = 30 if len(name) <= 4 else 24
-                ImageDraw.Draw(img).text(
-                    (
-                        int(drawX + (128 - font(s).getsize(name)[0]) / 2),
-                        int(drawY + 130 + (40 - font(s).getsize("高")[1]) / 2),
-                    ),
-                    name,
-                    font=font(s),
-                    fill="#333",
-                )
-                # 按照 7 个角色/武器一行绘制
-                drawX += 128 + 17
-            drawY += 130 + 40 + 20
-
-            # 一组角色/武器绘制完毕
-            startH += (130 + 40 + 20) * 1 + 20
-
-        # 全部绘制完毕，保存图片
-        img.save(LOCAL_DIR / f"week.{boss}.png")
-        logger.debug(f"周本图片生成完毕 week.{boss}.png")
-        imgs.append(img)
-
-    # # 仅有一张图片时直接返回
-    # if len(imgs) == 1:
-    #     return imgs[0]
-
-    # 存在多张图片时横向合并
-    weight = 0
-    merge = Image.new(
-        "RGBA",
-        (
-            sum([img.size[0] for img in imgs]) + (len(imgs) - 1) * 25,
-            max([img.size[1] for img in imgs]),
-        ),
-        "#FBFBFB",
+    icon_bg = Image.new("RGBA", (100, 100))
+    ImageDraw.Draw(icon_bg).rounded_rectangle(
+        (0, 0, 100, 100), radius=10, fill="#a58d83", width=0
     )
-    for img in imgs:
-        merge.paste(img, (weight, 0))  # int((height - img.size[1]) / 2)
-        weight += img.size[0] + 25
-    merge.save(LOCAL_DIR / "week.all.png")
-    logger.debug("周本图片合并完毕 week.all.png")
-    return merge
+    icon_bg = icon_bg.resize((50, 50), RESAMPLING)
+
+    draw_X, draw_Y = 20, 20
+    for key, consume in calculate.items():
+        if not consume:
+            continue
+
+        # 背景纯色
+        block_height = 80 + ceil(len(consume) / 2) * 70
+        drawer.rectangle(
+            ((20, draw_Y), (800 - 20 - 1, draw_Y + block_height)), fill="#f1ede4", width=0
+        )
+
+        # 标题
+        if key == "avatar_consume":
+            title_left, title_right = (
+                f"{name}·角色消耗",
+                f"Lv.{target['avatar_level_current']} >>> Lv.{target['avatar_level_target']}",
+            )
+        elif key == "avatar_skill_consume":
+            title_left, title_right = f"{name}·天赋消耗", "   ".join(
+                f"Lv.{_skill['level_current']}>{_skill['level_target']}"
+                for _skill in target["skill_list"]
+                if _skill["level_current"] != _skill["level_target"]
+            )
+        elif key == "weapon_consume":
+            title_left, title_right = (
+                f"{name}·升级消耗",
+                f"Lv.{target['weapon']['level_current']} >>> Lv.{target['weapon']['level_target']}",
+            )
+        else:
+            raise ValueError("材料计算器无法计算圣遗物消耗")
+        # 左侧标题
+        drawer.text(
+            (draw_X + 40, int(draw_Y + (80 - font(40).getbbox("高")[-1]) / 2)),
+            title_left,
+            fill="#8b7770",
+            font=font(40),
+        )
+        # 右侧标题字体大小自适应
+        _size = 40 - len(title_right.split("   ")) * 3
+        _text_width, _text_height = font(_size).getbbox(title_right)[-2:]
+        drawer.text(
+            (800 - 70 - _text_width, int(draw_Y + (80 - _text_height) / 2)),
+            title_right,
+            fill="#8b7770",
+            font=font(_size),
+        )
+
+        # 材料
+        is_left, _draw_X, _draw_Y = True, draw_X + 30, draw_Y + 80 + 10
+        for cost in consume:
+            # 图标背景
+            img.paste(icon_bg, (_draw_X, _draw_Y), icon_bg)
+            # 图标
+            _icon_path = DL_CFG["item"]["dir"] / "{}.{}".format(
+                cost["id"] if DL_CFG["item"]["file"] == "id" else cost["name"],
+                DL_CFG["item"]["fmt"],
+            )
+            _icon_img = Image.open(_icon_path).resize((50, 50), RESAMPLING)
+            img.paste(_icon_img, (_draw_X, _draw_Y), _icon_img)
+            # 名称 × 数量
+            cost_str = f"{cost['name']} × {cost['num']}"
+            drawer.text(
+                (_draw_X + 65, _draw_Y + int((50 - font(30).getbbox(cost_str)[-1]) / 2)),
+                cost_str,
+                fill="#967b68",
+                font=font(30),
+            )
+            if is_left:
+                _draw_X += 370
+            else:
+                _draw_X = draw_X + 30
+                _draw_Y += 70
+            is_left = not is_left
+
+        draw_Y += block_height + 20
+
+    buf = BytesIO()
+    img.save(buf, format="PNG", quality=100)
+    return buf.getvalue()

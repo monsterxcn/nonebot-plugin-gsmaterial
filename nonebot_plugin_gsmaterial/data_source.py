@@ -1,125 +1,234 @@
 import asyncio
 import json
 from datetime import datetime, timedelta
+from hashlib import md5
 from io import BytesIO
 from pathlib import Path
+from random import randint
+from re import findall
 from time import time
 from traceback import format_exc
-from typing import Dict, List, Literal, Union
+from typing import Dict, Literal, Optional, Tuple, Union
 
 from httpx import AsyncClient, HTTPError
-from nonebot.log import logger
 from PIL import Image
 
-from .config import LOCAL_DIR
-from .material_draw import drawItems, drawWeeks, toBase64
+from nonebot.log import logger
 
-AMBR = {
-    "每日采集": "https://api.ambr.top/v2/chs/dailyDungeon",
-    "角色列表": "https://api.ambr.top/v2/chs/avatar",
-    "武器列表": "https://api.ambr.top/v2/chs/weapon",
-    "材料列表": "https://api.ambr.top/v2/chs/material",
-    "角色详情": "https://api.ambr.top/v2/chs/avatar/{id}",
-    "武器详情": "https://api.ambr.top/v2/chs/weapon/{id}",
-    "材料详情": "https://api.ambr.top/v2/chs/material/{id}",
-    "升级材料": "https://api.ambr.top/v2/static/upgrade",
-    "通告": "https://api.ambr.top/assets/data/event.json",
-}
+from .config import AMBR, CONFIG_DIR, DL_CFG, DL_MIRROR, ITEM_ALIAS, MYS, WEEKLY_BOSS
+from .material_draw import draw_calculator, draw_materials
 
 
-async def download(url: str, local: Union[Path, str] = "") -> Union[Path, None]:
-    """
-    图片下载，使用 Pillow 保存图片
-    * ``param url: str`` 指定下载链接
-    * ``param local: Union[Path, str] = ""`` 指定本地目标路径，传入类型为 ``Path`` 时视为保存文件完整路径，传入类型为 ``str`` 时视为保存文件子文件夹名（默认下载至插件资源根目录）
-    - ``return: Union[Path, None]`` 本地文件地址，出错时返回空
-    """
-    # 路径处理
-    if not isinstance(local, Path):
-        d = (LOCAL_DIR / local) if local else LOCAL_DIR
-        if not d.exists():
-            d.mkdir(parents=True, exist_ok=True)
-        f = d / url.split("/")[-1]
-    else:
-        if not local.parent.exists():
-            local.parent.mkdir(parents=True, exist_ok=True)
-        f = local
-    # 本地文件存在时便不再下载
-    if f.exists():
-        # 测试角色图像为白色问号，该图片 st_size = 5105，小于 6KB 均视为无效图片
-        if not (f.name.lower().endswith("png") and f.stat().st_size < 6144):
-            return f
-    # 远程文件下载
-    client = AsyncClient()
-    retryCnt = 3
-    while retryCnt:
-        try:
-            if "ambr.top" not in url:
-                # 初始化时从阿里云 OSS 下载资源
-                async with client.stream("GET", url) as res:
-                    with open(f, "wb") as fb:
-                        async for chunk in res.aiter_bytes():
-                            fb.write(chunk)
-            else:
-                logger.info(f"安柏计划 {f.name} 正在下载\n>>>>> {url}")
-                async with AsyncClient() as client:
-                    res = await client.get(
-                        url,
-                        headers={
-                            "referer": "https://ambr.top/",
-                            "user-agent": (
-                                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, "
-                                "like Gecko) Chrome/104.0.5112.81 Safari/537.36 Edg/104.0.1293.47"
-                            ),
-                        },
-                        timeout=20.0,
-                    )
-                    userImage = Image.open(BytesIO(res.content))
-                    userImage.save(f, quality=100)
-            return f
-        except Exception as e:
-            logger.error(f"安柏计划 {f.name} 资源下载出错 {e.__class__.__name__}\n{format_exc()}")
-            retryCnt -= 1
-            if retryCnt:
-                await asyncio.sleep(2)
-    return None
-
-
-async def subHelper(
+async def sub_helper(
     mode: Literal["r", "ag", "ap", "dg", "dp"] = "r", id: Union[str, int] = ""
 ) -> Union[Dict, str]:
-    """订阅配置助手，支持读取 ``r(ead)`` 配置、添加 ``a(dd)`` 群 ``g(roup)`` 订阅、添加私聊 ``p(rivate)`` 订阅、删除 ``d(elete)`` 群订阅、删除私聊订阅"""
-    subFile = LOCAL_DIR / "sub.json"
-    subCfg: Dict[str, List] = json.loads(subFile.read_text(encoding="UTF-8"))
+    """订阅配置助手，支持读取 ``r(ead)`` 配置、添加 ``a(dd)`` 群组 ``g(roup)`` 订阅、添加私聊 ``p(rivate)`` 订阅、删除 ``d(elete)`` 群组订阅、删除私聊订阅"""
+
+    cfg_file = CONFIG_DIR / "sub.json"
+    sub_cfg = json.loads(cfg_file.read_text(encoding="UTF-8"))
+
+    # 读取订阅配置
     if mode == "r":
-        return subCfg
-    writeKey = {"g": "群组", "p": "私聊"}[mode[1]]
+        return sub_cfg
+
+    # 添加及删除订阅配置
+    write_key = {"g": "群组", "p": "私聊"}[mode[1]]
     if mode[0] == "a":
-        if int(id) in list(subCfg[writeKey]):
-            return f"已经添加过当前{writeKey}的原神每日材料订阅辣！"
-        subCfg[writeKey].append(int(id))
-        subFile.write_text(
-            json.dumps(subCfg, ensure_ascii=False, indent=2), encoding="UTF-8"
-        )
+        # 添加群组订阅或私聊订阅
+        if int(id) in list(sub_cfg[write_key]):
+            return f"已经添加过当前{write_key}的原神每日材料订阅辣！"
+        sub_cfg[write_key].append(int(id))
     else:
-        if int(id) not in list(subCfg[writeKey]):
-            return f"还没有添加过当前{writeKey}的原神每日材料订阅哦.."
-        subCfg[writeKey].remove(int(id))
-        subFile.write_text(
-            json.dumps(subCfg, ensure_ascii=False, indent=2), encoding="UTF-8"
+        # 删除群组订阅或私聊订阅
+        if int(id) not in list(sub_cfg[write_key]):
+            return f"还没有添加过当前{write_key}的原神每日材料订阅哦.."
+        sub_cfg[write_key].remove(int(id))
+
+    # 更新写入
+    cfg_file.write_text(
+        json.dumps(sub_cfg, ensure_ascii=False, indent=2), encoding="UTF-8"
+    )
+    return f"已{'启用' if mode[0] == 'a' else '禁用'}当前{write_key}的原神每日材料订阅。"
+
+
+async def cookies_helper(cookie: str = "") -> Dict[str, str]:
+    """Cookie 配置助手，支持读取、刷新、写入"""
+
+    cookie_file = CONFIG_DIR / "cookie.json"
+    cookie_cfg: Dict[str, str] = json.loads(cookie_file.read_text(encoding="UTF-8"))
+
+    # 读取
+    if not cookie:
+        if not cookie_cfg:
+            return {"error": "养成计算器需要米游社 Cookie！"}
+        else:
+            check_res = await query_mys("校验", cookie_cfg, {"game_biz": "hk4e_cn"})
+            if not check_res.get("error"):
+                # 检验成功才返回，否则尝试刷新
+                return cookie_cfg
+    # 写入
+    else:
+        cookie_cfg.update(dict(i.strip().split("=", 1) for i in cookie.split(";")))
+        check_res = await query_mys("校验", cookie_cfg, {"game_biz": "hk4e_cn"})
+        # 检验成功保存并返回，否则尝试刷新
+        if not check_res.get("error"):
+            # 更新米游社用户 ID
+            mys_id = (
+                cookie_cfg.get("stuid")
+                or cookie_cfg.get("ltuid")
+                or cookie_cfg.get("login_uid")
+                or cookie_cfg.get("account_id")
+            )
+            if mys_id:
+                cookie_cfg.update(
+                    {k: mys_id for k in ["stuid", "ltuid", "login_uid", "account_id"]}
+                )
+            # 精简 Cookie 字段
+            simple_cookie_cfg = {
+                k: cookie_cfg[k]
+                for k in [
+                    "account_id",
+                    "account_mid",
+                    "account_mid_v2",
+                    "cookie_token",
+                    "cookie_token_v2",
+                    "login_ticket",
+                    "login_ticket_v2",
+                    "login_uid",
+                    "login_uid_v2",
+                    "ltmid",
+                    "ltmid_v2",
+                    "ltoken",
+                    "ltoken_v2",
+                    "ltuid",
+                    "ltuid_v2",
+                    "mid",
+                    "stmid",
+                    "stmid_v2",
+                    "stoken",
+                    "stoken_v2",
+                    "stuid",
+                    "stuid_v2",
+                ]
+                if cookie_cfg.get(k)
+            }
+            # 写入更新
+            cookie_cfg.update(simple_cookie_cfg)
+            cookie_file.write_text(
+                json.dumps(cookie_cfg, ensure_ascii=False, indent=2), encoding="UTF-8"
+            )
+            return cookie_cfg
+
+    # 更新米游社用户 ID
+    mys_id = (
+        cookie_cfg.get("stuid")
+        or cookie_cfg.get("ltuid")
+        or cookie_cfg.get("login_uid")
+        or cookie_cfg.get("account_id")
+    )
+    if mys_id:
+        cookie_cfg.update(
+            {k: mys_id for k in ["stuid", "ltuid", "login_uid", "account_id"]}
         )
-    return f"已{'启用' if mode[0] == 'a' else '禁用'}当前{writeKey}的原神每日材料订阅。"
+
+    # 更新 cookie_token
+    if not cookie_cfg.get("stoken") and not cookie_cfg.get("login_ticket"):
+        # 同时缺少 login_ticket 和 stoken 直接结束
+        return {"error": f"缺少 stoken 无法自动{'补全' if cookie else '更新过期的'}曲奇！"}
+    elif not cookie_cfg.get("stoken"):
+        # 通过 login_ticket 更新 stoken
+        stoken_res = await query_mys(
+            "_stoken",
+            {},
+            data={
+                "login_ticket": cookie_cfg["login_ticket"],
+                "token_types": "3",
+                "uid": cookie_cfg["account_id"],
+            },
+            spec={"mys_id": cookie_cfg["account_id"], "cookie": ""},
+        )
+        if stoken_res.get("error"):
+            return stoken_res
+        try:
+            cookie_cfg["stoken"] = stoken_res["list"][0]["token"]
+            cookie_cfg["ltoken"] = stoken_res["list"][1]["token"]
+        except Exception as e:
+            logger.error(
+                f"尝试由 login_ticket 获取 stoken 出错 {e.__class__.__name__}\n{format_exc()}"
+            )
+            return {"error": "获取 stoken 出错，无法自动更新过期的曲奇！"}
+
+    # 通过 stoken 更新 cookie_token
+    user_id_type, user_id = (
+        ("mid", cookie_cfg.get("mid"))
+        if cookie_cfg["stoken"].startswith("v2_")
+        else ("uid", cookie_cfg["account_id"])
+    )
+    if not user_id:
+        # v2 stoken 需要与 mid 同时使用
+        return {"error": f"stoken v2 缺少 mid 无法自动{'补全' if cookie else '更新过期的'}曲奇！"}
+    cookie_token_res = await query_mys(
+        "_cookie",
+        {},
+        data={"stoken": cookie_cfg["stoken"], user_id_type: user_id},
+        spec={"mys_id": cookie_cfg["account_id"], "cookie": ""},
+    )
+    if cookie_token_res.get("error"):
+        return cookie_token_res
+    if cookie_token_res.get("cookie_token"):
+        cookie_cfg["cookie_token"] = cookie_token_res["cookie_token"]
+    else:
+        return {
+            "error": f"由 {'v2 ' if cookie_cfg['stoken'].startswith('v2_') else ''}stoken 获取 cookie_token 失败！"
+        }
+
+    # 精简 Cookie 字段
+    simple_cookie_cfg = {
+        k: cookie_cfg[k]
+        for k in [
+            "account_id",
+            "account_mid",
+            "account_mid_v2",
+            "cookie_token",
+            "cookie_token_v2",
+            "login_ticket",
+            "login_ticket_v2" "login_uid",
+            "login_uid_v2",
+            "ltmid",
+            "ltmid_v2",
+            "ltoken",
+            "ltoken_v2",
+            "ltuid",
+            "ltuid_v2",
+            "mid",
+            "stmid",
+            "stmid_v2",
+            "stoken",
+            "stoken_v2",
+            "stuid",
+            "stuid_v2",
+        ]
+        if cookie_cfg.get(k)
+    }
+    # 写入更新
+    cookie_cfg.update(simple_cookie_cfg)
+    cookie_file.write_text(
+        json.dumps(cookie_cfg, ensure_ascii=False, indent=2), encoding="UTF-8"
+    )
+
+    return cookie_cfg
 
 
-async def queryAmbr(
+async def query_ambr(
     type: Literal["每日采集", "升级材料", "角色列表", "武器列表", "材料列表"], retry: int = 3
 ) -> Dict:
-    """请求安柏计划数据接口"""
+    """安柏计划数据接口请求"""
+
     async with AsyncClient() as client:
         while retry:
             try:
-                res = (await client.get(AMBR[type])).json()
-                return res["data"]
+                res = await client.get(AMBR[type], timeout=10.0)
+                return res.json()["data"]
             except (HTTPError or json.decoder.JSONDecodeError or KeyError):
                 logger.info(f"安柏计划 {type} 接口请求出错，正在重试...")
                 retry -= 1
@@ -128,249 +237,585 @@ async def queryAmbr(
     return {}
 
 
-async def updateConfig() -> None:
-    """从安柏计划更新每日材料配置，顺便在启动时下载必需资源、生成周本图片"""
+async def get_ds_headers(
+    mys_id: str, cookie: str, body: str = "", query: str = ""
+) -> Dict:
+    """含 DS 请求头获取，仅用于补全 Cookie"""
+
+    client = {
+        "app_version": "2.36.1",
+        "client_type": "5",
+        "salt": "xV8v4Qu54lUKrEYFZkJhB8cuOh9Asafs",
+        "referer": "https://webstatic.mihoyo.com/bbs/event/signin-ys/index.html?bbs_auth_required=true&act_id=e202009291139501&utm_source=bbs&utm_medium=mys&utm_campaign=icon",
+    }
+
+    device = f"NB-{md5(mys_id.encode()).hexdigest()[:5]}"
+    ua = (
+        f"Mozilla/5.0 (Linux; Android 12; {device}) AppleWebKit/537.36 "
+        "(KHTML, like Gecko) Chrome/99.0.4844.73 Mobile Safari/537.36 "
+        f"miHoYoBBS/{client['app_version']}"
+    )
+
+    s = client["salt"]
+    t = str(int(time()))
+    r = str(randint(100000, 200000))
+    m = md5(f"salt={s}&t={t}&r={r}&b={body}&q={query}".encode()).hexdigest()
+
+    return {
+        "x-rpc-app_version": client["app_version"],
+        "x-rpc-client_type": client["client_type"],
+        "user-agent": ua,
+        "referer": client["referer"],
+        "ds": f"{t},{r},{m}",
+        "cookie": cookie,
+    }
+
+
+async def query_mys(
+    type: Literal["技能", "计算", "校验", "_stoken", "_cookie"],
+    cookie: Dict,
+    data: Dict,
+    spec: Dict = {},
+) -> Dict:
+    """米游社计算器接口请求"""
+
+    cookie_join = " ".join(f"{k}={v};" for k, v in cookie.items())
+    headers = (
+        await get_ds_headers(spec["mys_id"], spec["cookie"])
+        if type.startswith("_")
+        else {
+            "cookie": cookie_join,  # 必需
+            "host": "api-takumi.mihoyo.com",
+            "origin": "https://webstatic.mihoyo.com",
+            "referer": "https://webstatic.mihoyo.com/",
+            "sec-fetch-dest": "empty",
+            "sec-fetch-mode": "cors",
+            "sec-fetch-site": "same-site",
+            "user-agent": (
+                "Mozilla/5.0 (Linux; Android 12; SM-G977N Build/SP1A.210812.016; wv) "
+                "AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 "
+                "Chrome/107.0.5304.105 Mobile Safari/537.36 miHoYoBBS/2.40.1"
+            ),
+            "x-requested-with": "com.mihoyo.hyperion",
+        }
+    )
+
+    async with AsyncClient() as client:
+        res_dict = {}
+        try:
+            if type != "计算" or type.startswith("_"):
+                res = await client.get(MYS[type], params=data, headers=headers)
+            else:
+                headers["content-type"] = "application/json;charset=UTF-8"
+                res = await client.post(MYS[type], json=data, headers=headers)
+            res_dict = res.json()
+            return res_dict["data"] or {
+                "error": "[{}] {}".format(
+                    res_dict.get("retcode", "null"),
+                    res_dict.get("message", f"米游社{type}接口请求出错！"),
+                )
+            }
+        except (HTTPError or json.decoder.JSONDecodeError or KeyError):
+            logger.info(f"米游社 {type} 接口请求出错 {res_dict}\n{format_exc()}")
+            return {
+                "error": "[{}] {}".format(
+                    res_dict.get("retcode", "null"),
+                    res_dict.get("message", f"米游社{type}接口请求出错！"),
+                )
+            }
+
+
+async def download(
+    url: str, type: str = "draw", rename: str = "", retry: int = 3
+) -> Optional[Path]:
+    """
+    资源下载。图片资源使用 Pillow 保存
+    * ``param url: str`` 下载链接
+    * ``param type: str = "draw"`` 下载类型，根据类型决定保存的文件夹
+    * ``param rename: str = ""`` 下载资源重命名，需要包含文件后缀
+    * ``param retry: int = 3`` 下载失败重试次数
+    - ``return: Optional[Path]`` 本地文件路径，出错时返回空
+    """
+
+    # 下载链接及保存路径处理
+    if type == "draw":
+        # 插件绘图素材，通过阿里云 CDN 下载
+        f = CONFIG_DIR / "draw" / url
+        url = f"https://cdn.monsterx.cn/bot/gsmaterial/{url}"
+    elif type == "mihoyo":
+        # 通过米游社下载的文件，主要为米游社计算器材料图标
+        f = DL_CFG["item"]["dir"] / rename
+    else:
+        # 可通过镜像下载的文件，主要为角色头像、武器图标、天赋及武器突破材料图标
+        f = DL_CFG[type]["dir"] / rename
+        url = f"{DL_MIRROR}{url}.png"
+
+    # 跳过下载本地已存在的文件
+    if f.exists():
+        # 测试角色图像为白色问号，该图片 st_size = 5105，小于 6KB 均视为无效图片
+        if not (f.name.lower().endswith("png") and f.stat().st_size < 6144):
+            return f
+
+    # 远程文件下载
+    async with AsyncClient(verify=False) as client:
+        while retry:
+            try:
+                if type == "draw":
+                    # 通过阿里云 CDN 下载，可能有字体文件等
+                    async with client.stream("GET", url) as res:
+                        with open(f, "wb") as fb:
+                            async for chunk in res.aiter_bytes():
+                                fb.write(chunk)
+                else:
+                    logger.info(f"正在下载文件 {f.name}\n>>>>> {url}")
+                    headers = (
+                        {
+                            "host": "uploadstatic.mihoyo.com",
+                            "referer": "https://webstatic.mihoyo.com/",
+                            "sec-fetch-dest": "image",
+                            "sec-fetch-mode": "no-cors",
+                            "sec-fetch-site": "same-site",
+                            "user-agent": (
+                                "Mozilla/5.0 (Linux; Android 12; SM-G977N Build/SP1A.210812.016; wv) "
+                                "AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 "
+                                "Chrome/107.0.5304.105 Mobile Safari/537.36 miHoYoBBS/2.40.1"
+                            ),
+                            "x-requested-with": "com.mihoyo.hyperion",
+                        }
+                        if type == "mihoyo"
+                        else {
+                            "referer": "https://ambr.top/",
+                            "user-agent": (
+                                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, "
+                                "like Gecko) Chrome/104.0.5112.81 Safari/537.36 Edg/104.0.1293.47"
+                            ),
+                        }
+                    )
+                    res = await client.get(url, headers=headers, timeout=20.0)
+                    userImage = Image.open(BytesIO(res.content))
+                    userImage.save(f, quality=100)
+                return f
+            except Exception as e:
+                logger.error(f"文件 {f.name} 下载出错 {e.__class__.__name__}\n{format_exc()}")
+                retry -= 1
+                if retry:
+                    await asyncio.sleep(2)
+    logger.error(f"文件 {f.name} 下载最终失败！")
+
+
+async def update_config() -> None:
+    """材料配置更新"""
+
     # 启动资源下载
-    oss = [
-        "https://cdn.monsterx.cn/bot/gsmaterial/HYWH-65W.ttf",
-        "https://cdn.monsterx.cn/bot/gsmaterial/weapon.png",
-        "https://cdn.monsterx.cn/bot/gsmaterial/avatar.png",
-        "https://cdn.monsterx.cn/bot/gsmaterial/bg5.140.png",
-        "https://cdn.monsterx.cn/bot/gsmaterial/bg4.140.png",
-        "https://cdn.monsterx.cn/bot/gsmaterial/bg3.140.png",
+    init_tasks = [
+        download(file, "draw")
+        for file in [
+            "SmileySans-Oblique.ttf",
+            "bg5.140.png",
+            "bg4.140.png",
+            "bg3.140.png",
+        ]
     ]
-    initTask = [download(url, "draw") for url in oss]
-    await asyncio.gather(*initTask)
-    initTask.clear()
+    await asyncio.gather(*init_tasks)
+    init_tasks.clear()
+
+    logger.info("原神材料配置更新开始...")
 
     # 获取安柏计划数据
     logger.debug("安柏计划数据接口请求...")
-    domainRes = await queryAmbr("每日采集")
-    updateRes = await queryAmbr("升级材料")
-    avatarRes = await queryAmbr("角色列表")
-    weaponRes = await queryAmbr("武器列表")
-    materialRes = await queryAmbr("材料列表")
-    if any(not x for x in [domainRes, avatarRes, weaponRes, updateRes]):
-        logger.info("安柏计划数据更新数据不全！更新任务被跳过")
+    domain_res = await query_ambr("每日采集")
+    update_res = await query_ambr("升级材料")
+    avatar_res = await query_ambr("角色列表")
+    weapon_res = await query_ambr("武器列表")
+    material_res = await query_ambr("材料列表")
+    if any(not x for x in [domain_res, avatar_res, weapon_res, update_res, material_res]):
+        logger.info("安柏计划数据不全！更新任务被跳过")
         return
 
-    res = {"avatar": {}, "weapon": {}, "weekly": {}, "time": 0}
+    config = {"avatar": {}, "weapon": {}, "weekly": {}, "time": 0}
 
     # 生成最新每日材料配置
-    logger.debug("每日材料配置生成及图片下载...")
-    for dayKey in domainRes:
-        if dayKey not in ["monday", "tuesday", "wednesday"]:
+    logger.debug("每日材料配置更新 & 对应图片下载...")
+    for weekday, domains in domain_res.items():
+        if weekday not in ["monday", "tuesday", "wednesday"]:
             # 跳过材料重复的日期
             continue
-        dayNum = {"monday": "1", "tuesday": "2", "wednesday": "3"}[dayKey]
-        dm = domainRes[dayKey]
-        res["avatar"][dayNum], res["weapon"][dayNum] = {}, {}
+        day_num = {"monday": "1", "tuesday": "2", "wednesday": "3"}[weekday]
+        config["avatar"][day_num], config["weapon"][day_num] = {}, {}
         # 按区域重新排序秘境
-        dmOrder = sorted(dm, key=lambda x: dm[x]["city"])
+        # 约 3.2 版本起，安柏计划上游蒙德武器秘境返回的城市 ID 异常，手动纠正为 1
+        config_order = sorted(
+            domains,
+            key=lambda x: (
+                1
+                if domains[x]["name"] in ["炼武秘境：水光之城", "炼武秘境：深没之谷", "炼武秘境：渴水的废都"]
+                else domains[x]["city"]
+            ),
+        )
         # 遍历秘境填充对应的角色/武器数据
-        for dmKey in dmOrder:
-            if "精通秘境" in dm[dmKey]["name"]:
-                itemType, trans = "avatar", avatarRes["items"]
-            else:  # "炼武秘境" in dm[dmKey]["name"]
-                itemType, trans = "weapon", weaponRes["items"]
-            materialId = str(dm[dmKey]["reward"][-1])
-            material = materialRes["items"][materialId]["name"]
-            whoUse = [
-                id
-                for id in updateRes[itemType]
-                if materialId in updateRes[itemType][id]["items"]
-                and str(id).isdigit()  # 排除旅行者
+        for domain_key in config_order:
+            if "精通秘境" in domains[domain_key]["name"]:
+                item_type, trans = "avatar", avatar_res["items"]
+            else:  # "炼武秘境" in domains[domain_key]["name"]
+                item_type, trans = "weapon", weapon_res["items"]
+            material_id = str(domains[domain_key]["reward"][-1])
+            material_name = material_res["items"][material_id]["name"]
+            use_this = [
+                id_str
+                for id_str in update_res[item_type]
+                if material_id in update_res[item_type][id_str]["items"]
+                and id_str.isdigit()  # 排除旅行者 "10000005-anemo" 等
             ]
-            # 以 "5琴,5优菈,...,[rank][name]" 形式写入配置
-            res[itemType][dayNum][material] = ",".join(
-                str(trans[id]["rank"]) + trans[id]["name"] for id in whoUse
+            # 以 "5琴10000003,5优菈10000051,...,[rank][name][id]" 形式写入配置
+            config[item_type][day_num][f"{material_name}-{material_id}"] = ",".join(
+                f"{trans[i]['rank']}{trans[i]['name']}{i}" for i in use_this
             )
             # 下载图片
-            tmpTasks = [
+            domain_tasks = [
                 download(
-                    f"https://api.ambr.top/assets/UI/UI_ItemIcon_{materialId}.png",
-                    LOCAL_DIR / "item" / f"{material}.png",
-                )
-            ]
-            tmpTasks.extend(
-                [
+                    f"UI_ItemIcon_{material_id}.png",
+                    "item",
+                    "{}.{}".format(
+                        material_id if DL_CFG["item"]["file"] == "id" else material_name,
+                        DL_CFG["item"]["fmt"],
+                    ),
+                ),
+                *[
                     download(
-                        f"https://api.ambr.top/assets/UI/{trans[id]['icon']}.png",
-                        LOCAL_DIR / itemType / f"{trans[id]['name']}.png",
+                        f"{trans[i]['icon']}.png",
+                        item_type,
+                        "{}.{}".format(
+                            i if DL_CFG[item_type]["file"] == "id" else trans[i]["name"],
+                            DL_CFG[item_type]["fmt"],
+                        ),
                     )
-                    for id in whoUse
-                ]
-            )
-            await asyncio.gather(*tmpTasks)
-            tmpTasks.clear()
+                    for i in use_this
+                ],
+            ]
+            await asyncio.gather(*domain_tasks)
+            domain_tasks.clear()
 
-    # 生成最新周本材料配置
-    logger.debug("周本材料配置生成及图片下载...")
-    weeklyBoss = [  # 暂时拿第一个作为标识
-        ["风魔龙·特瓦林", "往日的天空之王", "深入风龙废墟", "追忆：暴风般狂啸之龙"],
-        ["安德留斯", "奔狼的领主", "北风的王狼，奔狼的领主"],
-        ["「公子」", "愚人众执行官末席", "进入「黄金屋」", "追忆：黄金与孤影"],
-        ["若陀龙王", "被封印的岩龙之王", "「伏龙树」之底", "追忆：摇撼山岳之龙"],
-        ["「女士」", "愚人众执行官第八席", "鸣神岛·天守", "追忆：红莲的真剑试合"],
-        ["祸津御建鸣神命", "雷电之稻妻殿", "梦想乐土之殁", "追忆：永恒的守护者"],
-        ["「正机之神」", "七叶寂照秘密主", "净琉璃工坊", "追忆：七叶中尊琉璃坛"],
-    ]
-    weeklyMaterial, weeklyTasks = [], []
-    for mtId, mtInfo in materialRes["items"].items():
+    # 获取最新周本材料
+    logger.debug("周本材料配置更新 & 对应图片下载...")
+    weekly_material, weekly_tasks = [], []
+    for material_id, material in material_res["items"].items():
         # 筛选周本材料
-        if mtInfo["rank"] != 5 or mtInfo["type"] != "characterLevelUpMaterial":
+        if (
+            material["rank"] != 5
+            or material["type"] != "characterLevelUpMaterial"
+            or int(material_id)
+            in [
+                104104,  # 璀璨原钻
+                104114,  # 燃愿玛瑙
+                104124,  # 涤净青金
+                104134,  # 生长碧翡
+                104144,  # 最胜紫晶
+                104154,  # 自在松石
+                104164,  # 哀叙冰玉
+                104174,  # 坚牢黄玉
+            ]
+        ):
+            # 包含计算器素材，但不在此处下载，后续计算时从米游社下载
             continue
-        # 去除 5 星角色突破材料
-        if int(mtId) in [
-            104104,  # 璀璨原钻
-            104114,  # 燃愿玛瑙
-            104124,  # 涤净青金
-            104134,  # 生长碧翡
-            104144,  # 最胜紫晶
-            104154,  # 自在松石
-            104164,  # 哀叙冰玉
-            104174,  # 坚牢黄玉
-        ]:
-            continue
-        weeklyMaterial.append(
-            mtInfo["name"] if mtInfo["name"] != "？？？" else str(mtInfo["id"])
-        )
-        if mtInfo["icon"]:
-            weeklyTasks.append(
+        weekly_material.append(material_id)
+        if material["icon"]:
+            weekly_tasks.append(
                 download(
-                    f"https://api.ambr.top/assets/UI/{mtInfo['icon']}.png",
-                    LOCAL_DIR / "item" / f"{mtInfo['name']}.png",
+                    f"{material['icon']}.png",
+                    "item",
+                    "{}.{}".format(
+                        material_id
+                        if DL_CFG["item"]["file"] == "id"
+                        else material["name"],
+                        DL_CFG["item"]["fmt"],
+                    ),
                 )
             )
-    await asyncio.gather(*weeklyTasks)
-    weeklyTasks.clear()
-    # 先填充已定义的周本下各个材料名称
-    res["weekly"] = {
-        bossKey[0]: {
-            materialKey: "" for materialKey in weeklyMaterial[bIdx * 3 : (bIdx + 1) * 3]
+
+    # 下载最新周本材料图片
+    await asyncio.gather(*weekly_tasks)
+    weekly_tasks.clear()
+
+    # 固定已知周本的各个材料键名顺序
+    config["weekly"] = {
+        boss_info[0]: {
+            f"{material_res['items'][material_id]['name']}-{material_id}": ""
+            for material_id in weekly_material[boss_idx * 3 : boss_idx * 3 + 3]
         }
-        for bIdx, bossKey in enumerate(weeklyBoss)
+        for boss_idx, boss_info in enumerate(WEEKLY_BOSS)
     }
-    # 在补充未实装内容到名为 "？？？" 的周本下
-    if len(weeklyMaterial) > len(weeklyBoss * 3):
-        res["weekly"]["？？？"] = {
-            betaKey: "" for betaKey in weeklyMaterial[len(weeklyBoss * 3) :]
+    # 未实装周本材料视为 BOSS "？？？" 的产物
+    if len(weekly_material) > len(WEEKLY_BOSS * 3):
+        config["weekly"]["？？？"] = {
+            f"{material_res['items'][material_id]['name']}-{material_id}": ""
+            for material_id in weekly_material[len(WEEKLY_BOSS * 3) :]
         }
-    for avatar in updateRes["avatar"]:
+
+    # 从升级材料中查找使用某周本材料的角色
+    for avatar_id, avatar in update_res["avatar"].items():
         # 排除旅行者
-        if not str(avatar).isdigit():
+        if not str(avatar_id).isdigit():
             continue
         # 将角色升级材料按消耗数量重新排序，周本材料 ID 将排在最后一位
-        mtKey = list(
-            {
-                k: v
-                for k, v in sorted(
-                    updateRes["avatar"][avatar]["items"].items(), key=lambda i: i[1]
-                )
-            }
+        material_id = list(
+            {k: v for k, v in sorted(avatar["items"].items(), key=lambda i: i[1])}
         )[-1]
-        mtName = materialRes["items"][mtKey]["name"]
-        weeklyBossIdx = weeklyMaterial.index(mtName) // 3
-        bossKey = (
-            weeklyBoss[weeklyBossIdx]
-            if weeklyBossIdx < len(weeklyBoss)
-            else ["？？？", "尚未实装周本"]
-        )
-        # 以 "5琴,5迪卢克,...,[rank][name]" 形式写入配置
-        res["weekly"][bossKey[0]][mtName if mtName != "？？？" else mtKey] += (
-            (
-                ","
-                if res["weekly"][bossKey[0]][mtName if mtName != "？？？" else mtKey]
-                else ""
-            )
-            + f"{avatarRes['items'][avatar]['rank']}{avatarRes['items'][avatar]['name']}"
+        material_name = material_res["items"][material_id]["name"]
+        # 确定 config["weekly"] 写入键名，第一层键名为周本 BOSS 名，第二层为 [name]-[id] 材料名
+        _boss_idx = weekly_material.index(material_id) // 3
+        _boss_name = WEEKLY_BOSS[_boss_idx][0] if _boss_idx < len(WEEKLY_BOSS) else "？？？"
+        _material_name = f"{material_res['items'][material_id]['name']}-{material_id}"
+        # 以 "5琴10000003,5迪卢克10000016,...,[rank][name][id]" 形式写入配置
+        config["weekly"][_boss_name][_material_name] += "{}{}{}{}".format(
+            "," if config["weekly"][_boss_name][_material_name] else "",
+            avatar_res["items"][avatar_id]["rank"],
+            avatar_res["items"][avatar_id]["name"],
+            avatar_id,
         )
 
     # 生成每日图片缓存，仅每日配置更新时重绘
-    needUpdate = True
-    if (LOCAL_DIR / "config.json").exists():
-        oldData = dict(
-            json.loads((LOCAL_DIR / "config.json").read_text(encoding="UTF-8"))
+    config_file, redraw_daily, redraw_weekly = CONFIG_DIR / "config.json", True, True
+    if config_file.exists():
+        old_config: Dict = json.loads(config_file.read_text(encoding="UTF-8"))
+        redraw_daily = any(
+            old_config.get(key) != config[key] for key in ["avatar", "weapon"]
         )
-        needUpdate = any(oldData.get(key) != res[key] for key in ["avatar", "weapon"])
-    if needUpdate:
+        redraw_weekly = old_config.get("weekly") != config["weekly"]
+    if redraw_daily:
         logger.debug("每日材料图片缓存生成...")
-        dailyTasks = [drawItems(res, day, ["avatar", "weapon"]) for day in [1, 2, 3]]
-        await asyncio.gather(*dailyTasks)
-        dailyTasks.clear()
-
-    # 生成周本图片缓存，仅周本配置更新时重绘
-    oldWeekData = (
-        dict(json.loads((LOCAL_DIR / "config.json").read_text(encoding="UTF-8"))).get(
-            "weekly"
-        )
-        if (LOCAL_DIR / "config.json").exists()
-        else {}
-    )
-    if oldWeekData != res["weekly"]:
+        daily_draw_tasks = [
+            draw_materials(config, ["avatar", "weapon"], day) for day in [1, 2, 3]
+        ]
+        await asyncio.gather(*daily_draw_tasks)
+        daily_draw_tasks.clear()
+    if redraw_weekly:
         logger.debug("周本材料图片缓存生成...")
-        await drawWeeks(res)
+        await draw_materials(config, [b[0] for b in WEEKLY_BOSS])
 
     # 补充时间戳
-    res["time"] = int(time())
-    logger.debug("原神材料配置写入...")
-    (LOCAL_DIR / "config.json").write_text(
-        json.dumps(res, ensure_ascii=False, indent=2), encoding="UTF-8"
+    config["time"] = int(time())
+    config_file.write_text(
+        json.dumps(config, ensure_ascii=False, indent=2), encoding="UTF-8"
     )
+    logger.info("原神材料配置更新完成！")
 
 
-async def genrMsg(needType: Literal["avatar", "weapon", "all", "update"]) -> str:
-    """原神每日材料图片生成入口"""
-    # 时间判断
-    weekday = (
-        (datetime.today() - timedelta(days=1)).weekday()
+def get_weekday(delta: int = 0) -> int:
+    """周几整数获取，delta 为向后推迟几天"""
+
+    return (
+        (datetime.today() + timedelta(days=delta - 1)).weekday()
         if datetime.today().hour < 4
-        else datetime.today().weekday()
-    )
-    if weekday == 6:
+        else (datetime.today() + timedelta(days=delta)).weekday()
+    ) + 1
+
+
+async def generate_daily_msg(
+    material: Literal["avatar", "weapon", "all", "update"],
+    weekday: int = 0,
+    delta: int = 0,
+) -> Union[Path, str]:
+    """原神每日材料图片生成入口"""
+
+    # 时间判断
+    weekday = weekday or get_weekday(delta)
+    if weekday == 7:
         return "今天所有天赋培养、武器突破材料都可以获取哦~"
-    day = (weekday + 1) if (weekday < 3) else (weekday - 2)
+    day = weekday % 3 or 3
+
     # 存在图片缓存且非更新任务时使用缓存
-    cachePic = LOCAL_DIR / f"day{day}.{needType}.png"
-    if needType != "update" and cachePic.exists():
-        logger.info(f"使用缓存的原神材料图片 {cachePic.name}")
-        return await toBase64(Image.open(cachePic))
+    cache_pic = CONFIG_DIR / "cache" / f"daily.{day}.{material}.jpg"
+    if material != "update" and cache_pic.exists():
+        logger.info(f"使用缓存的原神材料图片 {cache_pic.name}")
+        return cache_pic
+
     # 根据每日材料配置重新生成图片
-    config = json.loads((LOCAL_DIR / "config.json").read_text(encoding="UTF-8"))
-    needList = [needType] if needType in ["avatar", "weapon"] else ["avatar", "weapon"]
+    config = json.loads((CONFIG_DIR / "config.json").read_text(encoding="UTF-8"))
+    need_types = [material] if material in ["avatar", "weapon"] else ["avatar", "weapon"]
     # 按需绘制素材图片
     try:
-        img = await drawItems(config, day, needList)
-        return await toBase64(img)
+        return await draw_materials(config, need_types, day)
     except Exception as e:
-        logger.error(f"原神材料图片生成出错 {e.__class__.__name__}\n{format_exc()}")
-        return f"[{e.__class__.__name__}]原神材料图片生成失败"
+        logger.error(f"原神每日材料图片生成出错 {e.__class__.__name__}\n{format_exc()}")
+        return f"[{e.__class__.__name__}] 原神每日材料生成失败"
 
 
-async def genrWeek(
-    needType: Literal[
-        "all", "风魔龙·特瓦林", "安德留斯", "「公子」", "若陀龙王", "「女士」", "祸津御建鸣神命", "「正机之神」"
-    ]
-) -> str:
+async def generate_weekly_msg(boss: str) -> Union[Path, str]:
     """原神周本材料图片生成入口"""
+
+    assert boss in ["all", "？？？", *[b[0] for b in WEEKLY_BOSS]]
     # 存在图片缓存且非更新任务时使用缓存
-    cachePic = LOCAL_DIR / f"week.{needType}.png"
-    if cachePic.exists():
-        logger.info(f"使用缓存的原神材料图片 {cachePic.name}")
-        return await toBase64(Image.open(cachePic))
+    cache_pic = CONFIG_DIR / f"cache/weekly.{boss}.jpg"
+    if cache_pic.exists():
+        logger.info(f"使用缓存的原神材料图片 {cache_pic.name}")
+        return cache_pic
+
+    # 根据每日材料配置重新生成图片
+    config = json.loads((CONFIG_DIR / "config.json").read_text(encoding="UTF-8"))
+    need_types = [boss] if boss != "all" else [b[0] for b in WEEKLY_BOSS]
+    if not config["weekly"].get("？？？") and boss == "？？？":
+        return "当前暂无未上线的周本"
+    elif config["weekly"].get("？？？") and boss == "all":
+        need_types.append("？？？")
+    # 按需绘制素材图片
+    try:
+        return await draw_materials(config, need_types)
+    except Exception as e:
+        logger.error(f"原神周本材料图片生成出错 {e.__class__.__name__}\n{format_exc()}")
+        return f"[{e.__class__.__name__}] 原神周本材料生成失败"
+
+
+async def get_target(alias: str) -> Tuple[int, str]:
+    """升级目标 ID 及真实名称提取"""
+
+    alias = alias.lower()
+    for item_id, item_alias in ITEM_ALIAS.items():
+        if alias in item_alias:
+            return int(item_id), item_alias[0]
+    return 0, alias
+
+
+async def get_upgrade_target(cookies: Dict[str, str], target_id: int, msg: str) -> Dict:
+    """计算器升级范围提取"""
+    # cookie = " ".join(f"{k}={v};" for k, v in cookies.items() if k in ["account_id", "cookie_token"])
+
+    lvl_regex = r"([0-9]{1,2})([-\s]([0-9]{1,2}))?"
+    t_lvl_regex = r"(10|[1-9])(-(10|[1-9]))?"
+
+    # 武器升级识别
+    if target_id < 10000000:
+        level_target = findall(lvl_regex, msg)
+        if not level_target:
+            _lvl_from, _lvl_to = 1, 90
+        else:
+            _target = level_target[0]
+            _lvl_from, _lvl_to = (
+                (int(_target[0]), int(_target[-1]))
+                if _target[-1]
+                else (1, int(_target[0]))
+            )
+        return (
+            {"error": "武器等级超出限制~"}
+            if _lvl_to > 90
+            else {
+                "weapon": {
+                    "id": target_id,
+                    "level_current": _lvl_from,
+                    "level_target": _lvl_to,
+                },
+                # "reliquary_list": []
+            }
+        )
+
+    # 角色升级识别
+    # 角色等级，支持 90、70-90、70 90 三种格式
+    level_input = (
+        msg.split("天赋")[0].strip() if "天赋" in msg else msg.split(" ", 1)[0].strip()
+    )
+    level_targets = findall(lvl_regex, level_input)
+    if not level_targets:
+        # 消息直接以天赋开头视为不升级角色等级
+        _lvl_from, _lvl_to = 90 if msg.startswith("天赋") else 1, 90
+    elif len(level_targets) > 1:
+        return {"error": f"无法识别的等级「{level_input}」"}
     else:
-        return "原神周本材料图片尚未生成！"
-    # # 根据周本材料配置重新生成图片
-    # config = json.loads((LOCAL_DIR / "config.json").read_text(encoding="UTF-8"))
-    # needList = (
-    #     ["风魔龙·特瓦林", "安德留斯", "「公子」", "若陀龙王", "「女士」", "祸津御建鸣神命"]
-    #     if needType == "all"
-    #     else [needType]
-    # )
-    # # 按需绘制素材图片
-    # try:
-    #     img = await drawWeeks(config, needList)
-    #     return await toBase64(img)
-    # except Exception as e:
-    #     logger.error(f"原神材料图片生成出错 {e.__class__.__name__}\n{format_exc()}")
-    #     return f"[{e.__class__.__name__}]原神材料图片生成失败"
+        _target = level_targets[0]
+        _lvl_from, _lvl_to = (
+            (int(_target[0]), int(_target[0][-1]))
+            if _target[-1]
+            else (1, int(_target[0]))
+        )
+    if _lvl_to > 90:
+        return {"error": "伙伴等级超出限制~"}
+    msg = msg.lstrip(level_input).strip()
+    # 天赋等级，支持 8、888、81010、8 8 8、1-8、1-8 1-10 10 等
+    if msg.startswith("天赋"):
+        msg = msg.lstrip("天赋").strip()
+    skill_targets = findall(t_lvl_regex, msg)
+    if not skill_targets:
+        _skill_target = [[1, 8]] * 3
+    else:
+        _skill_target = [
+            [int(_matched[0]), int(_matched[-1])]
+            if _matched[-1]
+            else [1, int(_matched[0])]
+            for _matched in skill_targets
+        ]
+    if len(_skill_target) > 3:
+        return {"error": f"怎么会有 {len(_skill_target)} 个技能的角色呢？"}
+    if any(_s[1] > 10 for _s in _skill_target):
+        return {"error": "天赋等级超出限制~"}
+
+    # 获取角色技能数据
+    skill_list = await query_mys("技能", cookies, {"avatar_id": target_id})
+    if skill_list.get("error"):
+        return skill_list
+    skill_ids = [
+        skill["group_id"] for skill in skill_list["list"] if skill["max_level"] == 10
+    ]
+
+    return {
+        "avatar_id": target_id,
+        "avatar_level_current": _lvl_from,
+        "avatar_level_target": _lvl_to,
+        # "element_attr_id": 4,
+        "skill_list": [
+            {
+                "id": skill_ids[idx],
+                "level_current": skill_target[0],
+                "level_target": skill_target[1],
+            }
+            for idx, skill_target in enumerate(_skill_target)
+            # ...
+        ]
+        # "weapon": {
+        #     "id": 15508,
+        #     "level_current": 1,
+        #     "level_target": 90
+        # },
+        # "reliquary_list": []
+    }
+
+
+async def generate_calc_msg(msg: str) -> Union[bytes, str]:
+    """原神计算器材料图片生成入口"""
+
+    # 检查 Cookie 中 cookie_token 是否失效并尝试更新
+    cookie_dict = await cookies_helper()
+    if cookie_dict.get("error"):
+        return cookie_dict["error"]
+
+    # 提取待升级物品 ID 及真实名称
+    target_input = msg.split(" ", 1)[0]
+    target_id, target_name = await get_target(target_input.strip())
+    if not target_id:
+        return f"无法识别的名称「{target_input}」"
+    msg = msg.lstrip(target_input).strip()
+
+    # 提取升级范围
+    target = await get_upgrade_target(cookie_dict, target_id, msg)
+    if target.get("error"):
+        return target["error"]
+
+    # 请求米游社计算器
+    logger.info(f"{target_id}: {target}")
+    calculate = await query_mys("计算", cookie_dict, target)
+    if calculate.get("error"):
+        return calculate["error"]
+
+    # 下载计算器素材图片
+    for key in calculate.keys():
+        consume_tasks = [
+            download(
+                i["icon_url"],
+                "mihoyo",
+                f"{i[DL_CFG['item']['file']]}.{DL_CFG['item']['fmt']}",
+            )
+            for i in calculate[key]
+        ]
+        logger.info(f"正在下载计算器 {key} 消耗材料的 {len(consume_tasks)} 张图片")
+        await asyncio.gather(*consume_tasks)
+        consume_tasks.clear()
+
+    # 绘制计算器材料图片
+    return await draw_calculator(target_name, target, calculate)
