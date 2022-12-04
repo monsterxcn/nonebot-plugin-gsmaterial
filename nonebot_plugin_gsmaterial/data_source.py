@@ -721,7 +721,7 @@ async def get_upgrade_target(cookies: Dict[str, str], target_id: int, msg: str) 
     else:
         _target = level_targets[0]
         _lvl_from, _lvl_to = (
-            (int(_target[0]), int(_target[0][-1]))
+            (int(_target[0]), int(_target[-1]))
             if _target[-1]
             else (1, int(_target[0]))
         )

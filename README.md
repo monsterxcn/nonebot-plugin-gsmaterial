@@ -1,7 +1,7 @@
 <h1 align="center">NoneBot Plugin GsMaterial</h1></br>
 
 
-<p align="center">🤖 用于展示原神游戏每日材料数据的 NoneBot2 插件</p></br>
+<p align="center">🤖 用于展示原神游戏<b>秘境材料</b>和<b>升级消耗</b>数据的 NoneBot2 插件</p></br>
 
 
 <p align="center">
@@ -14,11 +14,11 @@
   <a href="https://pypi.python.org/pypi/nonebot-plugin-gsmaterial">
     <img src="https://img.shields.io/pypi/v/nonebot-plugin-gsmaterial?style=flat-square" alt="pypi">
   </a>
-  <img src="https://img.shields.io/badge/python-3.7.3+-blue?style=flat-square" alt="python"><br />
+  <img src="https://img.shields.io/badge/python-3.8+-blue?style=flat-square" alt="python"><br />
 </p></br>
 
 
-| ![示例](https://user-images.githubusercontent.com/22407052/192959337-beb894be-81c1-41d4-9cc3-3324eed16f97.png) |
+| ![示例](https://user-images.githubusercontent.com/22407052/205484996-0e2ae9ff-ceed-439d-bfff-4ab8eac03d34.jpg) |
 |:--:|
 
 
@@ -30,59 +30,74 @@
 
 ```bash
 # 从 nb_cli 安装
-python3 -m nb plugin install nonebot-plugin-gsmaterial
+python -m nb_cli plugin install nonebot-plugin-gsmaterial
 
 # 或从 PyPI 安装
-python3 -m pip install nonebot-plugin-gsmaterial
+python -m pip install nonebot-plugin-gsmaterial
 ```
 
 
-<details><summary><i>在 NoneBot 2.0.0.alpha16 上使用此插件</i></summary></br>
+## 插件配置
 
 
-在过时的 NoneBot 2.0.0.alpha16 上 **可能** 仍有机会体验此插件！不过，千万不要通过 NoneBot 脚手架或 PyPI 安装，仅支持通过 Git 手动安装此插件。
-
-以下命令仅作参考：
+### 环境变量
 
 
-```bash
-# 进入 Bot 根目录
-cd /path/to/bot
-# 安装依赖
-# source venv/bin/activate
-python3 -m pip install pillow httpx
-# 安装插件
-git clone https://github.com/monsterxcn/nonebot-plugin-gsmaterial.git
-cd nonebot-plugin-gsmaterial
-# 将文件夹 nonebot_plugin_gsmaterial 复制到 NoneBot2 插件目录下
-cp -r nonebot_plugin_gsmaterial /path/to/bot/plugins/
-# 将文件夹 data 下内容复制到 /path/to/bot/data/ 目录下
-mkdir /path/to/bot/data
-cp -r data/gsmaterial /path/to/bot/data/
+一般来说，插件安装完成后无需设置环境变量，只需重启 Bot 即可开始使用。你也可以在 NoneBot2 当前使用的 `.env` 文件中添加下面的环境变量，对插件进行更多配置。环境变量修改后需要重启 Bot 才能生效。
+
+
+ - `gsmaterial_mirror` 角色及武器图标下载镜像，需提供 `UI_AvatarIcon_Layla.png` 等形式的图片，可供选择的镜像有：
+   + `https://api.ambr.top/assets/UI/` 安柏计划（默认）
+   + `https://enka.network/ui/` Enka.Network
+   + `http://file.microgg.cn/ui/` 小灰灰
+ - `gsmaterial_scheduler` 每日材料订阅推送时间，默认为 `"8:10"`
+ - `gsmaterial_skip_three` 每日材料是否忽略三星物品，默认为 `True`
+ - `gsmaterial_config` 插件缓存目录，默认为 NoneBot2 根目录下 `data/gsmaterial` 文件夹，**填写时路径中的反斜杠 `\` 务必全部替换为正斜杠 `/`**
+ - `gsmaterial_avatar` `gsmaterial_weapon` `gsmaterial_item`
+   
+   分别为角色图标、武器图标、物品图标文件夹或文件路径。**一般情况不需要配置**。这些配置针对的是已经使用 [@KimigaiiWuyi/GenshinUID](https://github.com/KimigaiiWuyi/GenshinUID) 等插件在本地下载了 GsMaterial 所需资源的用户，合理配置这些环境变量可以避免 GsMaterial 重复下载。如果启用了这些配置，请注意检查 NoneBot2 启动时由此插件输出的 `图片缓存规则`，确保插件正确识别！配置具体填写的形式如下：
+   + `/path/to/avatars` 指定某个文件夹。如果 GsMaterial 后续需要补充下载文件，文件命名与当前已有文件的格式一致。如果该文件夹内尚无文件，则 GsMaterial 会在此文件夹下载以 `中文名称.png` 形式命名的文件
+   + `/path/to/avatars/10000002.png` 指定某个文件。如果 GsMaterial 后续需要补充下载文件，文件命名规则为 `数字 ID.png`。与此同理，如果填入形如 `../神里绫华.jpg`，后续补充下载文件的命名规则就为 `中文名称.jpg`
+
+
+### Cookie 配置
+
+
+如需使用材料计算功能，请在 `gsmaterial_config` 配置的目录下 cookie.json 文件中以字典形式填入米游社 Cookie，文件中至少需要有 `account_id` 和 `cookie_token`。考虑到 `cookie_token` 有效期比较玄学，建议再多配置一个 `stoken` 来自动更新 `cookie_token`。如果获取到的 `stoken` 以 `v2_` 开头，则还需要再配置一个 `mid`。
+
+
+最终你可能写入一个像这样的 cookie.json 文件：
+
+
+<details><summary><i>最普通的一种</i></summary></br>
+
+
+```json
+{
+  "account_id": "272894075",
+  "cookie_token": "PV6zzXj28UUSUHetJZO2sqEff4sqwdzDAA3Wz3xY",
+  "stoken": "5CzsKTYLuoCy4Pf5t7y3bHkS0MjljkOm89rOYfGh"
+}
 ```
 
 
 </details>
 
 
-## 使用须知
+<details><summary><i>使用 stoken v2 的那种</i></summary></br>
 
 
- - 插件的数据来源为 [Project Amber](https://ambr.top/chs)，所有未实装角色及武器的数据均由该数据库提供。
-   
- - 插件在 Bot 启动后会自动从阿里云 OSS 下载绘图模板，并尝试从 [Project Amber](https://ambr.top/chs) 下载所有角色及武器图片，启动时间由 Bot 与 [Project Amber](https://ambr.top/chs) 的连接质量决定。图片下载至本地后将不再从远程下载，启动时间将大幅缩短。
-   
-   **提示**：如果启动插件时下载图片的时间久到离谱，可以考虑自行克隆仓库内文件或从 [此处](https://monsterx.oss-cn-shanghai.aliyuncs.com/bot/gsmaterial/gsmaterial.zip) 下载资源压缩包。
-   
- - 一般来说，插件安装完成后无需设置环境变量，只需重启 Bot 即可开始使用。你也可以在 Nonebot2 当前使用的 `.env` 文件中添加下表给出的环境变量，对插件进行更多配置。环境变量修改后需要重启 Bot 才能生效。
-   
-   | 环境变量 | 必需 | 默认 | 说明 |
-   |:-------|:----:|:-----|:----|
-   | `gsmaterial_scheduler` | 否 | `"8:10"` | 每日材料订阅推送时间 |
-   | `gsmaterial_skip_three` | 否 | `true` | 是否忽略三星物品 |
-   | `resources_dir` | 否 | `"/path/to/bot/data/"` | 插件数据缓存目录的父文件夹，包含 `gsmaterial` 文件夹的上级文件夹路径 |
-   
- - 插件提供的原神每日材料定时推送基于 [@nonebot/plugin-apscheduler](https://github.com/nonebot/plugin-apscheduler)，如果 NoneBot2 启动时插件的定时任务未正常注册，可能需要额外添加该插件的环境变量 `apscheduler_autostart=true` 来使 `scheduler` 自动启动。
+```json
+{
+  "account_id": "272894075",
+  "cookie_token": "PV6zzXj28UUSUHetJZO2sqEff4sqwdzDAA3Wz3xY",
+  "stoken": "v2_efTJdH0uiaDIcoVSINjZY9lHOtSRS5NcfREpDUpXX-AQlLujTP2HWbi14TXHrH_dA1Dxw9TdTGG0LiRONpW=",
+  "mid": "0cckyppmwl_mhy"
+}
+```
+
+
+</details>
 
 
 ## 命令说明
@@ -91,17 +106,18 @@ cp -r data/gsmaterial /path/to/bot/data/
 插件响应以下形式的消息：
 
 
- - 以 `今日` / `原神材料` 开头的消息
+ - 以 `材料` 开头的消息
    
    | 附带参数 | 说明 |
    |:-------|:----|
    | 空 | 返回今日天赋培养与武器突破材料总图 |
    | `天赋` / `角色` | 返回今日天赋培养材料图片 |
    | `武器` | 返回今日武器突破材料图片 |
+   | `周一` / `1` / ... | 返回指定日期的天赋培养与武器突破材料总图 |
    | `订阅` | 启用当前消息来源的每日材料订阅，群组内仅 Bot 管理员、群组创建者、群组管理员可操作 |
    | `订阅删除` | 禁用当前消息来源的每日材料订阅，群组内仅 Bot 管理员、群组创建者、群组管理员可操作 |
    
- - 以 `周本` / `原神周本` 开头的消息
+ - 以 `周本` 开头的消息
    
    | 附带参数 | 说明 |
    |:-------|:----|
@@ -114,7 +130,59 @@ cp -r data/gsmaterial /path/to/bot/data/
    | `雷神` / `雷电` / `雷军` / `将军` | 返回 *祸津御建鸣神命* 掉落材料图片 |
    | `正机` / `散兵` / `伞兵` / `秘密主` | 返回 *「正机之神」* 掉落材料图片 |
    
-   ![周本总图](https://user-images.githubusercontent.com/22407052/200097973-5d3f886b-e0a9-4cbd-a75b-c0f348c3c9aa.PNG)
+   ![周本总图](https://user-images.githubusercontent.com/22407052/205485008-edaf71c9-5792-4220-aed1-b7fd2e8e7d10.jpg)
+
+ - 以 `原神计算` 开头的消息
+   
+   第一个附带参数 **必须** 为角色名称或武器名称（支持别名），并且与后面的参数 **用空格隔开**。
+   
+   计算角色时：
+   
+   + 角色等级允许的输入包括 `90`、`81-90` 等
+   + 天赋等级允许的输入包括 `8`、`1-8`、`888`、`81010`、`8 8 8`、`1-8 1-10 10` 等
+   + 只计算等级消耗时，可以使用 `111` 作为天赋等级
+   + 只计算天赋消耗时，可以使用 `1` 作为角色等级，或者不输入角色等级并在天赋等级前添加「天赋」二字
+   + 同时限定天赋等级和天赋等级时，**必须** 角色等级在前、天赋等级在后，中间用空格或「天赋」二字隔开
+   + 未限定等级范围时，默认计算角色等级 1-81、三个天赋等级 1-8 消耗的材料
+   
+   计算武器时：
+   
+   + 武器等级允许的输入包括 `90`、`81-90`、`81 90` 等
+   + 未限定等级范围时，默认计算武器等级 1-90 消耗的材料
+   
+   此指令附带参数较为复杂，下面是一些举例：
+   
+   + `原神计算琴` 计算 *琴* 角色等级 1-90、三个天赋等级 1-8 消耗材料
+   + `原神计算琴 81` 计算 *琴* 角色等级 1-**81**、三个天赋等级 1-8 消耗材料
+   + `原神计算琴 81 111` 计算 *琴* 角色等级 1-**81** 消耗材料
+   + `原神计算琴 81-90 111` 计算 *琴* 角色等级 **81**-**90** 消耗材料
+   + `原神计算琴 90 8 8-10 10` 计算 *琴* 角色等级 1-**90**、天赋等级 1-**8** **8**-**10** 1-**10** 消耗材料
+   + `原神计算琴 1 10` 计算 *琴* 天赋等级 1-**10** 消耗材料
+   + `原神计算琴 天赋101010` 计算 *琴* 三个天赋等级均 1-**10** 消耗材料
+   + `原神计算琴 天赋 10 1-8 1-10` 计算 *琴* 天赋等级 1-**10** **1**-**8**、**1**-**10** 消耗材料
+   + `原神计算狼末 81` 计算 *狼的末路* 等级 1-**81** 消耗材料
+   + `原神计算狼末 81 88` 计算 *狼的末路* 等级 **81**-**88** 消耗材料
+   
+   
+   <details><summary><i>计算角色示例</i></summary></br>
+   <img src="https://user-images.githubusercontent.com/22407052/205485052-688953df-1609-467c-b106-dafc32a79bb7.png" height="300px">
+   </details>
+   
+   <details><summary><i>计算武器示例</i></summary></br>
+   <img src="https://user-images.githubusercontent.com/22407052/205486180-25706def-8f23-4305-a2b6-5cb1056b5d2e.png" height="300px">
+   </details>
+
+
+## 其他说明
+
+
+ - 插件每日材料、周本材料数据来源为 [Project Amber](https://ambr.top/chs)，所有未实装角色及武器的数据均由该数据库提供。
+   
+ - 插件升级材料数据来源为 [米游社养成计算器](#)，使用此功能需要有效的 `account_id` 和 `cookie_token`。
+   
+ - 插件使用的所有角色及武器图标会在 Bot 连接建立后从环境变量 `GSMATERIAL_MIRROR`（默认为 [Project Amber](https://ambr.top/chs)）下载，所有计算器所需图标会在查询时从米游社下载。这些资源通常只需下载一次，其下载路径及保存文件名均可通过环境变量控制，具体说明请查看 [环境变量](#环境变量) 第 5 条。
+   
+ - 插件的原神每日材料定时推送基于 [@nonebot/plugin-apscheduler](https://github.com/nonebot/plugin-apscheduler)，如果 NoneBot2 启动时插件的定时任务未正常注册，可能需要额外添加该插件的环境变量 `apscheduler_autostart=true` 来使 `scheduler` 自动启动。
 
 
 ## 特别鸣谢
