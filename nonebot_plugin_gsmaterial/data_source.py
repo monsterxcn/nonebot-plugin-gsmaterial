@@ -348,7 +348,7 @@ async def download(
     else:
         # 可通过镜像下载的文件，主要为角色头像、武器图标、天赋及武器突破材料图标
         f = DL_CFG[type]["dir"] / rename
-        url = f"{DL_MIRROR}{url}.png"
+        url = DL_MIRROR + url
 
     # 跳过下载本地已存在的文件
     if f.exists():

@@ -58,6 +58,12 @@ python -m pip install nonebot-plugin-gsmaterial
    分别为角色图标、武器图标、物品图标文件夹或文件路径。**一般情况不需要配置**。这些配置针对的是已经使用 [@KimigaiiWuyi/GenshinUID](https://github.com/KimigaiiWuyi/GenshinUID) 等插件在本地下载了 GsMaterial 所需资源的用户，合理配置这些环境变量可以避免 GsMaterial 重复下载。如果启用了这些配置，请注意检查 NoneBot2 启动时由此插件输出的 `图片缓存规则`，确保插件正确识别！配置具体填写的形式如下：
    + `/path/to/avatars` 指定某个文件夹。如果 GsMaterial 后续需要补充下载文件，文件命名与当前已有文件的格式一致。如果该文件夹内尚无文件，则 GsMaterial 会在此文件夹下载以 `中文名称.png` 形式命名的文件
    + `/path/to/avatars/10000002.png` 指定某个文件。如果 GsMaterial 后续需要补充下载文件，文件命名规则为 `数字 ID.png`。与此同理，如果填入形如 `../神里绫华.jpg`，后续补充下载文件的命名规则就为 `中文名称.jpg`
+   
+   [@KimigaiiWuyi/GenshinUID](https://github.com/KimigaiiWuyi/GenshinUID) 用户安装 GsMaterial 后推荐配置：
+   ```
+   gsmaterial_avatar="/path/to/GenshinUID/resource/chars"
+   gsmaterial_weapon="/path/to/GenshinUID/resource/weapon"
+   ```
 
 
 ### Cookie 配置
@@ -180,7 +186,7 @@ python -m pip install nonebot-plugin-gsmaterial
    
  - 插件升级材料数据来源为 [米游社养成计算器](#)，使用此功能需要有效的 `account_id` 和 `cookie_token`。
    
- - 插件使用的所有角色及武器图标会在 Bot 连接建立后从环境变量 `GSMATERIAL_MIRROR`（默认为 [Project Amber](https://ambr.top/chs)）下载，所有计算器所需图标会在查询时从米游社下载。这些资源通常只需下载一次，其下载路径及保存文件名均可通过环境变量控制，具体说明请查看 [环境变量](#环境变量) 第 5 条。
+ - 插件使用的所有角色及武器图标会在 Bot 连接建立后从环境变量 `GSMATERIAL_MIRROR` 下载，所有计算器所需图标会在查询时从米游社下载。这些资源通常只需下载一次，其下载路径及保存文件名均可通过环境变量控制，具体说明请查看 [环境变量](#环境变量) 第 5 条。
    
  - 插件的原神每日材料定时推送基于 [@nonebot/plugin-apscheduler](https://github.com/nonebot/plugin-apscheduler)，如果 NoneBot2 启动时插件的定时任务未正常注册，可能需要额外添加该插件的环境变量 `apscheduler_autostart=true` 来使 `scheduler` 自动启动。
 
