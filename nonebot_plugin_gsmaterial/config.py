@@ -107,22 +107,23 @@ WEEKLY_BOSS = [  # 暂时拿第一个作为标识
     ["「正机之神」", "七叶寂照秘密主", "净琉璃工坊", "追忆：七叶中尊琉璃坛", "正机", "散兵", "伞兵", "秘密主"],
 ]
 
-# peiz
+# API 地址
 AMBR = {
     "每日采集": "https://api.ambr.top/v2/chs/dailyDungeon",
     "角色列表": "https://api.ambr.top/v2/chs/avatar",
-    "武器列表": "https://api.ambr.top/v2/chs/weapon",
-    "材料列表": "https://api.ambr.top/v2/chs/material",
     "角色详情": "https://api.ambr.top/v2/chs/avatar/{id}",
+    "武器列表": "https://api.ambr.top/v2/chs/weapon",
     "武器详情": "https://api.ambr.top/v2/chs/weapon/{id}",
+    "材料列表": "https://api.ambr.top/v2/chs/material",
     "材料详情": "https://api.ambr.top/v2/chs/material/{id}",
+    "圣遗物列表": "https://api.ambr.top/v2/chs/reliquary",
+    "圣遗物详情": "https://api.ambr.top/v2/chs/reliquary/{id}",
     "升级材料": "https://api.ambr.top/v2/static/upgrade",
     "通告": "https://api.ambr.top/assets/data/event.json",
 }
 MYS = {
     "技能": "https://api-takumi.mihoyo.com/event/e20200928calculate/v1/avatarSkill/list",
     "计算": "https://api-takumi.mihoyo.com/event/e20200928calculate/v2/compute",
-    "校验": "https://api-takumi.mihoyo.com/binding/api/getUserGameRolesByCookie",
     "_stoken": "https://api-takumi.mihoyo.com/auth/api/getMultiTokenByLoginTicket",
     "_cookie": "https://api-takumi.mihoyo.com/auth/api/getCookieAccountInfoBySToken",
 }

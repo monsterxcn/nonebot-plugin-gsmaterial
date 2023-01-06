@@ -7,7 +7,6 @@ from pathlib import Path
 from random import randint
 from re import findall
 from time import time
-from traceback import format_exc
 from typing import Dict, Literal, Optional, Tuple, Union
 
 from httpx import AsyncClient, HTTPError
@@ -56,20 +55,45 @@ async def cookies_helper(cookie: str = "") -> Dict[str, str]:
 
     cookie_file = CONFIG_DIR / "cookie.json"
     cookie_cfg: Dict[str, str] = json.loads(cookie_file.read_text(encoding="UTF-8"))
+    standard_keys = [
+        "account_id",
+        "account_mid",
+        "account_mid_v2",
+        "cookie_token",
+        "cookie_token_v2",
+        "login_ticket",
+        "login_ticket_v2",
+        "login_uid",
+        "login_uid_v2",
+        "ltmid",
+        "ltmid_v2",
+        "ltoken",
+        "ltoken_v2",
+        "ltuid",
+        "ltuid_v2",
+        "mid",
+        "stmid",
+        "stmid_v2",
+        "stoken",
+        "stoken_v2",
+        "stuid",
+        "stuid_v2",
+    ]
 
     # 读取
     if not cookie:
         if not cookie_cfg:
             return {"error": "养成计算器需要米游社 Cookie！"}
         else:
-            check_res = await query_mys("校验", cookie_cfg, {"game_biz": "hk4e_cn"})
+            # 蒙德飞行冠军安柏应该不会有人没有吧？
+            check_res = await query_mys("技能", cookie_cfg, {"avatar_id": 10000021})
             if not check_res.get("error"):
                 # 检验成功才返回，否则尝试刷新
                 return cookie_cfg
     # 写入
     else:
         cookie_cfg.update(dict(i.strip().split("=", 1) for i in cookie.split(";")))
-        check_res = await query_mys("校验", cookie_cfg, {"game_biz": "hk4e_cn"})
+        check_res = await query_mys("技能", cookie_cfg, {"avatar_id": 10000021})
         # 检验成功保存并返回，否则尝试刷新
         if not check_res.get("error"):
             # 更新米游社用户 ID
@@ -85,32 +109,7 @@ async def cookies_helper(cookie: str = "") -> Dict[str, str]:
                 )
             # 精简 Cookie 字段
             simple_cookie_cfg = {
-                k: cookie_cfg[k]
-                for k in [
-                    "account_id",
-                    "account_mid",
-                    "account_mid_v2",
-                    "cookie_token",
-                    "cookie_token_v2",
-                    "login_ticket",
-                    "login_ticket_v2",
-                    "login_uid",
-                    "login_uid_v2",
-                    "ltmid",
-                    "ltmid_v2",
-                    "ltoken",
-                    "ltoken_v2",
-                    "ltuid",
-                    "ltuid_v2",
-                    "mid",
-                    "stmid",
-                    "stmid_v2",
-                    "stoken",
-                    "stoken_v2",
-                    "stuid",
-                    "stuid_v2",
-                ]
-                if cookie_cfg.get(k)
+                k: cookie_cfg[k] for k in standard_keys if cookie_cfg.get(k)
             }
             # 写入更新
             cookie_cfg.update(simple_cookie_cfg)
@@ -153,9 +152,7 @@ async def cookies_helper(cookie: str = "") -> Dict[str, str]:
             cookie_cfg["stoken"] = stoken_res["list"][0]["token"]
             cookie_cfg["ltoken"] = stoken_res["list"][1]["token"]
         except Exception as e:
-            logger.error(
-                f"尝试由 login_ticket 获取 stoken 出错 {e.__class__.__name__}\n{format_exc()}"
-            )
+            logger.opt(exception=e).error("由 login_ticket 获取 stoken 出错")
             return {"error": "获取 stoken 出错，无法自动更新过期的曲奇！"}
 
     # 通过 stoken 更新 cookie_token
@@ -183,33 +180,7 @@ async def cookies_helper(cookie: str = "") -> Dict[str, str]:
         }
 
     # 精简 Cookie 字段
-    simple_cookie_cfg = {
-        k: cookie_cfg[k]
-        for k in [
-            "account_id",
-            "account_mid",
-            "account_mid_v2",
-            "cookie_token",
-            "cookie_token_v2",
-            "login_ticket",
-            "login_ticket_v2" "login_uid",
-            "login_uid_v2",
-            "ltmid",
-            "ltmid_v2",
-            "ltoken",
-            "ltoken_v2",
-            "ltuid",
-            "ltuid_v2",
-            "mid",
-            "stmid",
-            "stmid_v2",
-            "stoken",
-            "stoken_v2",
-            "stuid",
-            "stuid_v2",
-        ]
-        if cookie_cfg.get(k)
-    }
+    simple_cookie_cfg = {k: cookie_cfg[k] for k in standard_keys if cookie_cfg.get(k)}
     # 写入更新
     cookie_cfg.update(simple_cookie_cfg)
     cookie_file.write_text(
@@ -229,11 +200,12 @@ async def query_ambr(
             try:
                 res = await client.get(AMBR[type], timeout=10.0)
                 return res.json()["data"]
-            except (HTTPError or json.decoder.JSONDecodeError or KeyError):
-                logger.info(f"安柏计划 {type} 接口请求出错，正在重试...")
+            except (HTTPError, json.decoder.JSONDecodeError, KeyError) as e:
                 retry -= 1
                 if retry:
                     await asyncio.sleep(2)
+                else:
+                    logger.opt(exception=e).error(f"安柏计划 {type} 接口请求出错")
     return {}
 
 
@@ -272,7 +244,7 @@ async def get_ds_headers(
 
 
 async def query_mys(
-    type: Literal["技能", "计算", "校验", "_stoken", "_cookie"],
+    type: Literal["技能", "计算", "_stoken", "_cookie"],
     cookie: Dict,
     data: Dict,
     spec: Dict = {},
@@ -315,8 +287,8 @@ async def query_mys(
                     res_dict.get("message", f"米游社{type}接口请求出错！"),
                 )
             }
-        except (HTTPError or json.decoder.JSONDecodeError or KeyError):
-            logger.info(f"米游社 {type} 接口请求出错 {res_dict}\n{format_exc()}")
+        except (HTTPError, json.decoder.JSONDecodeError, KeyError) as e:
+            logger.opt(exception=e).error(f"米游社 {type} 接口请求出错\n>>>>> {res_dict}")
             return {
                 "error": "[{}] {}".format(
                     res_dict.get("retcode", "null"),
@@ -396,11 +368,11 @@ async def download(
                     userImage.save(f, quality=100)
                 return f
             except Exception as e:
-                logger.error(f"文件 {f.name} 下载出错 {e.__class__.__name__}\n{format_exc()}")
                 retry -= 1
                 if retry:
                     await asyncio.sleep(2)
-    logger.error(f"文件 {f.name} 下载最终失败！")
+                else:
+                    logger.opt(exception=e).error(f"文件 {f.name} 下载失败！")
 
 
 async def update_config() -> None:
@@ -636,7 +608,7 @@ async def generate_daily_msg(
     try:
         return await draw_materials(config, need_types, day)
     except Exception as e:
-        logger.error(f"原神每日材料图片生成出错 {e.__class__.__name__}\n{format_exc()}")
+        logger.opt(exception=e).error("原神每日材料图片生成出错")
         return f"[{e.__class__.__name__}] 原神每日材料生成失败"
 
 
@@ -661,7 +633,7 @@ async def generate_weekly_msg(boss: str) -> Union[Path, str]:
     try:
         return await draw_materials(config, need_types)
     except Exception as e:
-        logger.error(f"原神周本材料图片生成出错 {e.__class__.__name__}\n{format_exc()}")
+        logger.opt(exception=e).error("原神周本材料图片生成出错")
         return f"[{e.__class__.__name__}] 原神周本材料生成失败"
 
 
@@ -721,9 +693,7 @@ async def get_upgrade_target(cookies: Dict[str, str], target_id: int, msg: str) 
     else:
         _target = level_targets[0]
         _lvl_from, _lvl_to = (
-            (int(_target[0]), int(_target[-1]))
-            if _target[-1]
-            else (1, int(_target[0]))
+            (int(_target[0]), int(_target[-1])) if _target[-1] else (1, int(_target[0]))
         )
     if _lvl_to > 90:
         return {"error": "伙伴等级超出限制~"}
