@@ -5,7 +5,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 setuptools.setup(
     name="nonebot-plugin-gsmaterial",
-    version="0.2.1",
+    version="0.2.2",
     author="monsterxcn",
     author_email="monsterxcn@gmail.com",
     description="Genshin daily material plugin for NoneBot2",
@@ -21,7 +21,7 @@ setuptools.setup(
         "Operating System :: OS Independent",
     ],
     packages=["nonebot-plugin-gsmaterial"],
-    python_requires=">=3.7.3,<4.0",
+    python_requires=">=3.8,<4.0",
     install_requires=[
         "nonebot2>=2.0.0a16",
         "nonebot-adapter-onebot>=2.0.0b1",

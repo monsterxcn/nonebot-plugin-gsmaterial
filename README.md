@@ -6,7 +6,7 @@
 
 <p align="center">
   <a href="https://github.com/monsterxcn/nonebot-plugin-gsmaterial/actions">
-    <img src="https://img.shields.io/github/workflow/status/monsterxcn/nonebot-plugin-gsmaterial/Build%20distributions?style=flat-square" alt="actions">
+    <img src="https://img.shields.io/github/actions/workflow/status/monsterxcn/nonebot-plugin-gsmaterial/publish.yml?branch=main&style=flat-square" alt="actions">
   </a>
   <a href="https://raw.githubusercontent.com/monsterxcn/nonebot-plugin-gsmaterial/master/LICENSE">
     <img src="https://img.shields.io/github/license/monsterxcn/nonebot-plugin-gsmaterial?style=flat-square" alt="license">
