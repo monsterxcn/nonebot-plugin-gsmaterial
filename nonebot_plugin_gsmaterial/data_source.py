@@ -14,7 +14,7 @@ from PIL import Image
 
 from nonebot.log import logger
 
-from .config import AMBR, CONFIG_DIR, DL_CFG, DL_MIRROR, ITEM_ALIAS, MYS, WEEKLY_BOSS
+from .config import AMBR, CONFIG_DIR, DL_CFG, DL_MIRROR, ITEM_ALIAS, MYS, TZ, WEEKLY_BOSS
 from .material_draw import draw_calculator, draw_materials
 
 
@@ -575,11 +575,9 @@ async def update_config() -> None:
 def get_weekday(delta: int = 0) -> int:
     """周几整数获取，delta 为向后推迟几天"""
 
-    return (
-        (datetime.today() + timedelta(days=delta - 1)).weekday()
-        if datetime.today().hour < 4
-        else (datetime.today() + timedelta(days=delta)).weekday()
-    ) + 1
+    today = datetime.now(TZ)  # 添加时区信息
+    _delta = (delta - 1) if today.hour < 4 else delta
+    return (today + timedelta(days=_delta)).weekday() + 1
 
 
 async def generate_daily_msg(

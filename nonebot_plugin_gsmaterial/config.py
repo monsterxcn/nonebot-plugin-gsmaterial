@@ -3,6 +3,7 @@ from pathlib import Path
 from typing import Tuple
 
 from httpx import Client
+from pytz import UnknownTimeZoneError, timezone
 
 from nonebot import get_driver
 from nonebot.log import logger
@@ -38,6 +39,13 @@ def _init_picture_dir(env_key: str, config_dir: Path) -> Tuple[str, str, Path]:
         return pic_name, pic_fmt, env_value
     raise ValueError(f".env 文件中 {env_key} 填写的值异常！应填写图片文件或文件夹路径")
 
+
+# 时区设定
+# TZ="Asia/Shanghai"
+try:
+    TZ = timezone(str(getattr(_driver.config, "tz", "Asia/Shanghai")))
+except UnknownTimeZoneError:
+    TZ = timezone("Asia/Shanghai")
 
 # 材料下载镜像
 # GSMATERIAL_MIRROR="https://api.ambr.top/assets/UI/"
