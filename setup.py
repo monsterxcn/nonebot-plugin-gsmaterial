@@ -5,7 +5,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 setuptools.setup(
     name="nonebot-plugin-gsmaterial",
-    version="0.2.2",
+    version="0.2.3",
     author="monsterxcn",
     author_email="monsterxcn@gmail.com",
     description="Genshin daily material plugin for NoneBot2",
@@ -28,5 +28,6 @@ setuptools.setup(
         "nonebot-plugin-apscheduler>=0.1.0",
         "httpx>=0.20.0,<1.0.0",
         "Pillow>=9.2.0",
+        "pytz",
     ],
 )

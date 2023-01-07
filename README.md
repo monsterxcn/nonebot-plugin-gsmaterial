@@ -25,7 +25,7 @@
 ## 安装方法
 
 
-如果你正在使用 2.0.0.beta1 以上版本 NoneBot，推荐使用以下命令安装：
+如果你正在使用 2.0.0.beta1 以上版本 NoneBot2，推荐使用以下命令安装：
 
 
 ```bash
@@ -46,13 +46,22 @@ python -m pip install nonebot-plugin-gsmaterial
 一般来说，插件安装完成后无需设置环境变量，只需重启 Bot 即可开始使用。你也可以在 NoneBot2 当前使用的 `.env` 文件中添加下面的环境变量，对插件进行更多配置。环境变量修改后需要重启 Bot 才能生效。
 
 
+ - `tz` 时区设置，默认为 `"Asia/Shanghai"`
+   
+   如果定时任务时区异常，请查看 [@nonebot/plugin-apscheduler](https://github.com/nonebot/plugin-apscheduler) 文档添加该依赖插件的 `apscheduler_config` 环境变量配置
+   
  - `gsmaterial_mirror` 角色及武器图标下载镜像，需提供 `UI_AvatarIcon_Layla.png` 等形式的图片，可供选择的镜像有：
+   
    + `https://api.ambr.top/assets/UI/` 安柏计划（默认）
    + `https://enka.network/ui/` Enka.Network
    + `http://file.microgg.cn/ui/` 小灰灰
+   
  - `gsmaterial_scheduler` 每日材料订阅推送时间，默认为 `"8:10"`
+   
  - `gsmaterial_skip_three` 每日材料是否忽略三星物品，默认为 `True`
+   
  - `gsmaterial_config` 插件缓存目录，默认为 NoneBot2 根目录下 `data/gsmaterial` 文件夹，**填写时路径中的反斜杠 `\` 务必全部替换为正斜杠 `/`**
+   
  - `gsmaterial_avatar` `gsmaterial_weapon` `gsmaterial_item`
    
    分别为角色图标、武器图标、物品图标文件夹或文件路径。**一般情况不需要配置**。这些配置针对的是已经使用 [@KimigaiiWuyi/GenshinUID](https://github.com/KimigaiiWuyi/GenshinUID) 等插件在本地下载了 GsMaterial 所需资源的用户，合理配置这些环境变量可以避免 GsMaterial 重复下载。如果启用了这些配置，请注意检查 NoneBot2 启动时由此插件输出的 `图片缓存规则`，确保插件正确识别！配置具体填写的形式如下：
@@ -61,8 +70,8 @@ python -m pip install nonebot-plugin-gsmaterial
    
    [@KimigaiiWuyi/GenshinUID](https://github.com/KimigaiiWuyi/GenshinUID) 用户安装 GsMaterial 后推荐配置：
    ```
-   gsmaterial_avatar="/path/to/GenshinUID/resource/chars"
-   gsmaterial_weapon="/path/to/GenshinUID/resource/weapon"
+   gsmaterial_avatar="/path/to/GenshinUID/resource/chars"  # 填 chars 文件夹实际路径，不要照抄
+   gsmaterial_weapon="/path/to/GenshinUID/resource/weapon"  # 填 weapon 文件夹实际路径，不要照抄
    ```
 
 
@@ -71,6 +80,7 @@ python -m pip install nonebot-plugin-gsmaterial
 
 如需使用材料计算功能，请在 `gsmaterial_config` 配置的目录下 cookie.json 文件中以字典形式填入米游社 Cookie，文件中至少需要有 `account_id` 和 `cookie_token`。考虑到 `cookie_token` 有效期比较玄学，建议再多配置一个 `stoken` 来自动更新 `cookie_token`。如果获取到的 `stoken` 以 `v2_` 开头，则还需要再配置一个 `mid`。
 
+**注意**，Cookie 配置不需要普通用户单独配置，只需要 Bot 拥有者配置一个公共 Cookie！
 
 最终你可能写入一个像这样的 cookie.json 文件：
 
@@ -96,8 +106,26 @@ python -m pip install nonebot-plugin-gsmaterial
 ```json
 {
   "account_id": "272894075",
-  "cookie_token": "PV6zzXj28UUSUHetJZO2sqEff4sqwdzDAA3Wz3xY",
+  "cookie_token_v2": "PV6zzXj28UUSUHetJZO2sqEff4sqwdzDAA3Wz3xY",
   "stoken": "v2_efTJdH0uiaDIcoVSINjZY9lHOtSRS5NcfREpDUpXX-AQlLujTP2HWbi14TXHrH_dA1Dxw9TdTGG0LiRONpW=",
+  "mid": "0cckyppmwl_mhy"
+}
+```
+
+
+</details>
+
+
+<details><summary><i>使用 login_ticket 的那种</i></summary></br>
+
+
+login_ticket 获取方式请参考 https://github.com/monsterxcn/nonebot-plugin-gsmaterial/issues/8#issuecomment-1365705339
+
+
+```json
+{
+  "account_id": "272894075",
+  "login_ticket": "5CzsKTYLuoCy4Pf5t7y3bHkS0MjljkOm89rOYfGh",
   "mid": "0cckyppmwl_mhy"
 }
 ```
@@ -182,7 +210,7 @@ python -m pip install nonebot-plugin-gsmaterial
 ## 其他说明
 
 
- - 插件每日材料、周本材料数据来源为 [Project Amber](https://ambr.top/chs)，所有未实装角色及武器的数据均由该数据库提供。
+ - 插件秘境材料数据来源为 [Project Amber](https://ambr.top/chs)，所有未实装角色及武器的数据均由该数据库提供。
    
  - 插件升级材料数据来源为 [米游社养成计算器](#)，使用此功能需要有效的 `account_id` 和 `cookie_token`。
    

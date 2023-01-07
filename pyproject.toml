@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "nonebot-plugin-gsmaterial"
-version = "0.2.2"
+version = "0.2.3"
 description = "Genshin daily material plugin for NoneBot2"
 authors = ["monsterxcn <monsterxcn@gmail.com>"]
 documentation = "https://github.com/monsterxcn/nonebot-plugin-gsmaterial#readme"
@@ -16,6 +16,7 @@ nonebot-adapter-onebot = ">=2.0.0b1"
 nonebot-plugin-apscheduler = ">=0.1.0"
 httpx = ">=0.20.0, <1.0.0"
 Pillow = "^9.2.0"
+pytz = "*"
 
 [tool.poetry.dev-dependencies]
 
