@@ -2,9 +2,7 @@ from asyncio import sleep as async_sleep
 from random import randint
 from typing import Dict
 
-from nonebot_plugin_apscheduler import scheduler
-
-from nonebot import get_bot, get_driver
+from nonebot import get_bot, get_driver, require
 from nonebot.adapters.onebot.v11 import Bot
 from nonebot.adapters.onebot.v11.event import GroupMessageEvent, MessageEvent
 from nonebot.adapters.onebot.v11.message import MessageSegment
@@ -20,9 +18,12 @@ from .data_source import (
     update_config,
 )
 
-mt_daily_matcher = on_command("材料", priority=13, block=True)
-mt_weekly_matcher = on_command("周本", priority=13, block=True)
-mt_calc_matcher = on_command("原神计算", priority=13, block=True)
+require("nonebot_plugin_apscheduler")
+from nonebot_plugin_apscheduler import scheduler  # noqa: E402
+
+mt_daily_matcher = on_command("材料", priority=13)
+mt_weekly_matcher = on_command("周本", priority=13)
+mt_calc_matcher = on_command("原神计算", priority=13)
 driver = get_driver()
 driver.on_bot_connect(update_config)
 
