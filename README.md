@@ -5,16 +5,14 @@
 
 
 <p align="center">
-  <a href="https://github.com/monsterxcn/nonebot-plugin-gsmaterial/actions">
-    <img src="https://img.shields.io/github/actions/workflow/status/monsterxcn/nonebot-plugin-gsmaterial/publish.yml?branch=main&style=flat-square" alt="actions">
-  </a>
-  <a href="https://raw.githubusercontent.com/monsterxcn/nonebot-plugin-gsmaterial/master/LICENSE">
-    <img src="https://img.shields.io/github/license/monsterxcn/nonebot-plugin-gsmaterial?style=flat-square" alt="license">
-  </a>
-  <a href="https://pypi.python.org/pypi/nonebot-plugin-gsmaterial">
-    <img src="https://img.shields.io/pypi/v/nonebot-plugin-gsmaterial?style=flat-square" alt="pypi">
-  </a>
-  <img src="https://img.shields.io/badge/python-3.8+-blue?style=flat-square" alt="python"><br />
+  <a href="https://raw.githubusercontent.com/monsterxcn/nonebot-plugin-gsmaterial/master/LICENSE"><img src="https://img.shields.io/github/license/monsterxcn/nonebot-plugin-gsmaterial" alt="license" /></a>
+  <a href="https://pypi.python.org/pypi/nonebot-plugin-gsmaterial"><img src="https://img.shields.io/pypi/v/nonebot-plugin-gsmaterial" alt="pypi" /></a>
+  <a href="https://www.python.org/"><img src="https://img.shields.io/badge/python-3.8+-blue" alt="python" /></a>
+  <a href="https://jq.qq.com/?_wv=1027&k=GF2vqPgf"><img src="https://img.shields.io/badge/QQ%E7%BE%A4-662597191-orange" alt="QQ Chat Group" /></a><br />
+  <a href="https://github.com/psf/black"><img src="https://img.shields.io/badge/code%20style-black-000000.svg" alt="Code style: black" /></a>
+  <a href="https://pycqa.github.io/isort"><img src="https://img.shields.io/badge/%20imports-isort-%231674b1?&labelColor=ef8336" alt="Imports: isort" /></a>
+  <a href="https://flake8.pycqa.org/"><img src="https://img.shields.io/badge/lint-flake8-&labelColor=4c9c39" alt="Lint: flake8" /></a>
+  <a href="https://results.pre-commit.ci/latest/github/monsterxcn/nonebot-plugin-gsmaterial/main"><img src="https://results.pre-commit.ci/badge/github/monsterxcn/nonebot-plugin-gsmaterial/main.svg" alt="pre-commit" /></a>
 </p></br>
 
 
