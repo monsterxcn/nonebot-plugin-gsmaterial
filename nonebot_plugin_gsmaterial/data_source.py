@@ -23,6 +23,7 @@ from .config import (
     DL_MIRROR,
     CONFIG_DIR,
     ITEM_ALIAS,
+    SKIP_THREE,
     WEEKLY_BOSS,
 )
 
@@ -415,7 +416,7 @@ async def update_config() -> None:
         logger.info("安柏计划数据不全！更新任务被跳过")
         return
 
-    config = {"avatar": {}, "weapon": {}, "weekly": {}, "time": 0}
+    config = {"avatar": {}, "weapon": {}, "weekly": {}, "skip_3": SKIP_THREE, "time": 0}
 
     # 生成最新每日材料配置
     logger.debug("每日材料配置更新 & 对应图片下载...")
@@ -562,7 +563,7 @@ async def update_config() -> None:
             avatar_id,
         )
 
-    # 生成每日图片缓存，仅每日配置更新时重绘
+    # 判断是否需要更新缓存
     config_file, redraw_daily, redraw_weekly = CONFIG_DIR / "config.json", True, True
     if config_file.exists():
         old_config: Dict = json.loads(config_file.read_text(encoding="UTF-8"))
@@ -570,6 +571,10 @@ async def update_config() -> None:
             old_config.get(key) != config[key] for key in ["avatar", "weapon"]
         )
         redraw_weekly = old_config.get("weekly") != config["weekly"]
+        # 跳过三星物品环境变量改变，强制重绘每日材料图片
+        if old_config.get("skip_3", True) != config["skip_3"]:
+            redraw_daily = True
+    # 更新每日材料图片缓存
     if redraw_daily:
         logger.debug("每日材料图片缓存生成...")
         daily_draw_tasks = [
@@ -577,6 +582,7 @@ async def update_config() -> None:
         ]
         await asyncio.gather(*daily_draw_tasks)
         daily_draw_tasks.clear()
+    # 更新周本材料图片缓存
     if redraw_weekly:
         logger.debug("周本材料图片缓存生成...")
         await draw_materials(config, [b[0] for b in WEEKLY_BOSS])

@@ -56,7 +56,7 @@ python -m pip install nonebot-plugin-gsmaterial
    
  - `gsmaterial_scheduler` 每日材料订阅推送时间，默认为 `"8:10"`
    
- - `gsmaterial_skip_three` 每日材料是否忽略三星物品，默认为 `True`
+ - `gsmaterial_skip_three` 每日材料是否忽略三星物品，默认为 `true`
    
  - `gsmaterial_config` 插件缓存目录，默认为 NoneBot2 根目录下 `data/gsmaterial` 文件夹，**填写时路径中的反斜杠 `\` 务必全部替换为正斜杠 `/`**
    
