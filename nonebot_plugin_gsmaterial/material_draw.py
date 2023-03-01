@@ -1,7 +1,8 @@
-from copy import deepcopy
-from io import BytesIO
+from re import match
 from math import ceil
+from io import BytesIO
 from pathlib import Path
+from copy import deepcopy
 from typing import Dict, List, Union
 
 from PIL import Image, ImageDraw, ImageFont
@@ -9,7 +10,7 @@ from PIL import Image, ImageDraw, ImageFont
 from nonebot.log import logger
 from nonebot.utils import run_sync
 
-from .config import CONFIG_DIR, DL_CFG, SKIP_THREE
+from .config import DL_CFG, CONFIG_DIR, SKIP_THREE
 
 RESAMPLING = getattr(Image, "Resampling", Image).LANCZOS
 
@@ -78,7 +79,9 @@ async def draw_materials(config: Dict, needs: List[str], day: int = 0) -> Path:
         title_bbox = font(50).getbbox(title)
         total_width = max(
             title_bbox[-2] + 50,
-            max([(font(40).getlength(_key.split("-")[0]) + 150) for _key in draw_config]),
+            max(
+                [(font(40).getlength(_key.split("-")[0]) + 150) for _key in draw_config]
+            ),
             max([len(draw_config[_key].split(",")[:6]) for _key in draw_config])
             * (170 + 10)
             + 10,
@@ -138,13 +141,21 @@ async def draw_materials(config: Dict, needs: List[str], day: int = 0) -> Path:
                 draw_config[key].split(","), key=lambda x: x[0], reverse=True
             )
             for item in draw_order:
-                # 5雷电将军10000052,5八重神子10000058,...
-                _split = -5 if need == "weapon" else -8
-                rank, name, this_id = item[0], item[1:_split], item[_split:]
+                if match(r"^[0-9][\u4e00-\u9fa5]+[0-9]{5,}$", item):
+                    # 5雷电将军10000052,5八重神子10000058,...
+                    _split = -5 if need == "weapon" else -8
+                    rank, name, this_id = item[0], item[1:_split], item[_split:]
+                else:
+                    rank = 0
+                    name = this_id = item
                 # 角色/武器图片
                 try:
                     _dl_cfg_key = "avatar" if need not in ["avatar", "weapon"] else need
-                    _icon = deepcopy(rank_bg[str(rank)])
+                    _icon = (
+                        deepcopy(rank_bg[str(rank)])
+                        if rank
+                        else Image.new("RGBA", (140, 140), "#818486")
+                    )
                     _icon_path = DL_CFG[_dl_cfg_key]["dir"] / "{}.{}".format(
                         this_id if DL_CFG[_dl_cfg_key]["file"] == "id" else name,
                         DL_CFG[_dl_cfg_key]["fmt"],
@@ -223,7 +234,9 @@ async def draw_calculator(name: str, target: Dict, calculate: Dict) -> Union[byt
         # 背景纯色
         block_height = 80 + ceil(len(consume) / 2) * 70
         drawer.rectangle(
-            ((20, draw_Y), (800 - 20 - 1, draw_Y + block_height)), fill="#f1ede4", width=0
+            ((20, draw_Y), (800 - 20 - 1, draw_Y + block_height)),
+            fill="#f1ede4",
+            width=0,
         )
 
         # 标题

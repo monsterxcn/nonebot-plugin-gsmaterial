@@ -1,21 +1,30 @@
-import asyncio
 import json
-from datetime import datetime, timedelta
-from hashlib import md5
+import asyncio
+from time import time
 from io import BytesIO
+from re import findall
+from hashlib import md5
 from pathlib import Path
 from random import randint
-from re import findall
-from time import time
-from typing import Dict, Literal, Optional, Tuple, Union
+from datetime import datetime, timedelta
+from typing import Dict, Tuple, Union, Literal, Optional
 
-from httpx import AsyncClient, HTTPError
 from PIL import Image
+from httpx import HTTPError, AsyncClient
 
 from nonebot.log import logger
 
-from .config import AMBR, CONFIG_DIR, DL_CFG, DL_MIRROR, ITEM_ALIAS, MYS, TZ, WEEKLY_BOSS
-from .material_draw import draw_calculator, draw_materials
+from .material_draw import draw_materials, draw_calculator
+from .config import (
+    TZ,
+    MYS,
+    AMBR,
+    DL_CFG,
+    DL_MIRROR,
+    CONFIG_DIR,
+    ITEM_ALIAS,
+    WEEKLY_BOSS,
+)
 
 
 async def sub_helper(
@@ -400,7 +409,9 @@ async def update_config() -> None:
     avatar_res = await query_ambr("角色列表")
     weapon_res = await query_ambr("武器列表")
     material_res = await query_ambr("材料列表")
-    if any(not x for x in [domain_res, avatar_res, weapon_res, update_res, material_res]):
+    if any(
+        not x for x in [domain_res, avatar_res, weapon_res, update_res, material_res]
+    ):
         logger.info("安柏计划数据不全！更新任务被跳过")
         return
 
@@ -456,8 +467,14 @@ async def update_config() -> None:
                     download(
                         f"{trans[i]['icon']}.png",
                         item_type,
+                        # 特殊物品图片重命名为 config 中写入格式（L454）
                         "{}.{}".format(
-                            i if DL_CFG[item_type]["file"] == "id" else trans[i]["name"],
+                            (
+                                i
+                                if DL_CFG[item_type]["file"] == "id"
+                                else trans[i]["name"]
+                            )
+                            or f"{trans[i]['rank']}{trans[i]['name']}{i}",
                             DL_CFG[item_type]["fmt"],
                         ),
                     )
