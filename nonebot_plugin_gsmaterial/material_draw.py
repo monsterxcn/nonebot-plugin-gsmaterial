@@ -94,7 +94,7 @@ async def draw_materials(config: Dict, needs: List[str], day: int = 0) -> Path:
         total_height = 150 + len(draw_config) * 90 + line_cnt * (160 + 40 + 20)
 
         # 开始绘制！
-        img = Image.new("RGBA", (total_width, total_height), "#FBFBFB")
+        img = Image.new("RGBA", (int(total_width), total_height), "#FBFBFB")
         drawer = ImageDraw.Draw(img)
 
         # 绘制标题

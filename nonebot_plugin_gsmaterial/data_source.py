@@ -27,6 +27,8 @@ from .config import (
     WEEKLY_BOSS,
 )
 
+_WEEKLY_BOSS = WEEKLY_BOSS[:-1]
+
 
 async def sub_helper(
     mode: Literal["r", "ag", "ap", "dg", "dp"] = "r", id: Union[str, int] = ""
@@ -532,13 +534,13 @@ async def update_config() -> None:
             f"{material_res['items'][material_id]['name']}-{material_id}": ""
             for material_id in weekly_material[boss_idx * 3 : boss_idx * 3 + 3]
         }
-        for boss_idx, boss_info in enumerate(WEEKLY_BOSS)
+        for boss_idx, boss_info in enumerate(_WEEKLY_BOSS)
     }
     # 未实装周本材料视为 BOSS "？？？" 的产物
-    if len(weekly_material) > len(WEEKLY_BOSS * 3):
+    if len(weekly_material) > len(_WEEKLY_BOSS * 3):
         config["weekly"]["？？？"] = {
             f"{material_res['items'][material_id]['name']}-{material_id}": ""
-            for material_id in weekly_material[len(WEEKLY_BOSS * 3) :]
+            for material_id in weekly_material[len(_WEEKLY_BOSS * 3) :]
         }
 
     # 从升级材料中查找使用某周本材料的角色
@@ -553,7 +555,9 @@ async def update_config() -> None:
         material_name = material_res["items"][material_id]["name"]
         # 确定 config["weekly"] 写入键名，第一层键名为周本 BOSS 名，第二层为 [name]-[id] 材料名
         _boss_idx = weekly_material.index(material_id) // 3
-        _boss_name = WEEKLY_BOSS[_boss_idx][0] if _boss_idx < len(WEEKLY_BOSS) else "？？？"
+        _boss_name = (
+            _WEEKLY_BOSS[_boss_idx][0] if _boss_idx < len(_WEEKLY_BOSS) else "？？？"
+        )
         _material_name = f"{material_res['items'][material_id]['name']}-{material_id}"
         # 以 "5琴10000003,5迪卢克10000016,...,[rank][name][id]" 形式写入配置
         config["weekly"][_boss_name][_material_name] += "{}{}{}{}".format(
@@ -585,7 +589,13 @@ async def update_config() -> None:
     # 更新周本材料图片缓存
     if redraw_weekly:
         logger.debug("周本材料图片缓存生成...")
-        await draw_materials(config, [b[0] for b in WEEKLY_BOSS])
+        bosses_names = WEEKLY_BOSS if config["weekly"].get("？？？") else _WEEKLY_BOSS
+        bosses_key = [b[0] for b in bosses_names]
+        await draw_materials(config, bosses_key)
+    # 清理未上线周本过期的图片缓存
+    if not config["weekly"].get("？？？"):
+        beta_weekly_pic = CONFIG_DIR / "cache/weekly.？？？.jpg"
+        beta_weekly_pic.unlink(missing_ok=True)
 
     # 补充时间戳
     config["time"] = int(time())
@@ -636,7 +646,7 @@ async def generate_daily_msg(
 async def generate_weekly_msg(boss: str) -> Union[Path, str]:
     """原神周本材料图片生成入口"""
 
-    assert boss in ["all", "？？？", *[b[0] for b in WEEKLY_BOSS]]
+    assert boss in ["all", *[b[0] for b in WEEKLY_BOSS]]
     # 存在图片缓存且非更新任务时使用缓存
     cache_pic = CONFIG_DIR / f"cache/weekly.{boss}.jpg"
     if cache_pic.exists():
@@ -645,7 +655,7 @@ async def generate_weekly_msg(boss: str) -> Union[Path, str]:
 
     # 根据每日材料配置重新生成图片
     config = json.loads((CONFIG_DIR / "config.json").read_text(encoding="UTF-8"))
-    need_types = [boss] if boss != "all" else [b[0] for b in WEEKLY_BOSS]
+    need_types = [boss] if boss != "all" else [b[0] for b in _WEEKLY_BOSS]
     if not config["weekly"].get("？？？") and boss == "？？？":
         return "当前暂无未上线的周本"
     elif config["weekly"].get("？？？") and boss == "all":
