@@ -115,7 +115,11 @@ async def draw_materials(config: Dict, needs: List[str], day: int = 0) -> Path:
             try:
                 _key_icon = deepcopy(rank_bg["4" if need == "avatar" else "5"])
                 _key_icon_path = DL_CFG["item"]["dir"] / "{}.{}".format(
-                    key_id if DL_CFG["item"]["file"] == "id" else key_name,
+                    key_id
+                    if DL_CFG["item"]["file"] == "id"
+                    else key_name
+                    if key_name != "？？？"
+                    else key_id,
                     DL_CFG["item"]["fmt"],
                 )
                 _key_icon_img = Image.open(_key_icon_path).resize((140, 140), RESAMPLING)
@@ -141,7 +145,7 @@ async def draw_materials(config: Dict, needs: List[str], day: int = 0) -> Path:
                 draw_config[key].split(","), key=lambda x: x[0], reverse=True
             )
             for item in draw_order:
-                if match(r"^[0-9][\u4e00-\u9fa5]+[0-9]{5,}$", item):
+                if match(r"^[0-9][\u3000-\u9fff]+[0-9]{5,}$", item):
                     # 5雷电将军10000052,5八重神子10000058,...
                     _split = -5 if need == "weapon" else -8
                     rank, name, this_id = item[0], item[1:_split], item[_split:]

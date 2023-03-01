@@ -16,7 +16,7 @@
 </p></br>
 
 
-| ![示例](https://user-images.githubusercontent.com/22407052/205484996-0e2ae9ff-ceed-439d-bfff-4ab8eac03d34.jpg) |
+| ![示例](https://user-images.githubusercontent.com/22407052/222161789-a9b09aaa-0ec3-4b1e-ba2b-3d7107f1f9d4.jpg) |
 |:--:|
 
 
@@ -163,7 +163,7 @@ login_ticket 获取方式请参考 https://github.com/monsterxcn/nonebot-plugin-
    | `正机` / `散兵` / `伞兵` / `秘密主` | 返回 *「正机之神」* 掉落材料图片 |
    | `测试` / `未知` / `未实装` / `未上线` | 返回 *尚未实装周本* 掉落材料图片（如果有） |
    
-   ![周本总图](https://user-images.githubusercontent.com/22407052/205485008-edaf71c9-5792-4220-aed1-b7fd2e8e7d10.jpg)
+   ![周本总图](https://user-images.githubusercontent.com/22407052/222161368-ac5b7c34-9583-47ec-82ef-6447273770e6.jpg)
 
  - 以 `原神计算` 开头的消息
    

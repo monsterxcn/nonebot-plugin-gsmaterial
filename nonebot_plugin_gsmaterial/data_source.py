@@ -462,7 +462,11 @@ async def update_config() -> None:
                     f"UI_ItemIcon_{material_id}.png",
                     "item",
                     "{}.{}".format(
-                        material_id if DL_CFG["item"]["file"] == "id" else material_name,
+                        material_id
+                        if DL_CFG["item"]["file"] == "id"
+                        else material_name
+                        if material_name != "？？？"
+                        else material_id,
                         DL_CFG["item"]["fmt"],
                     ),
                 ),
@@ -476,6 +480,8 @@ async def update_config() -> None:
                                 i
                                 if DL_CFG[item_type]["file"] == "id"
                                 else trans[i]["name"]
+                                if trans[i]["name"] != "？？？"
+                                else i
                             )
                             or f"{trans[i]['rank']}{trans[i]['name']}{i}",
                             DL_CFG[item_type]["fmt"],
@@ -518,7 +524,9 @@ async def update_config() -> None:
                     "{}.{}".format(
                         material_id
                         if DL_CFG["item"]["file"] == "id"
-                        else material["name"],
+                        else material["name"]
+                        if material["name"] != "？？？"
+                        else material_id,
                         DL_CFG["item"]["fmt"],
                     ),
                 )
