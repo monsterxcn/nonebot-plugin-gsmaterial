@@ -1,0 +1,46 @@
+name: Update alias
+
+on:
+    workflow_dispatch:
+
+jobs:
+  update:
+    name: Update alias
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@master
+
+      - name: Setup python
+        uses: actions/setup-python@v1
+        with:
+          python-version: 3.8
+
+      - name: Update files
+        run: |
+          cd .github
+          wget -q $(echo 'aHR0cHM6Ly9naXRsYWIuY29tL0RpbWJyZWF0aC9BbmltZUdhbWVEYXRhLy0vcmF3L21hc3Rlcg==' | base64 -d)/ExcelBinOutput/AvatarExcelConfigData.json
+          wget -q $(echo 'aHR0cHM6Ly9naXRsYWIuY29tL0RpbWJyZWF0aC9BbmltZUdhbWVEYXRhLy0vcmF3L21hc3Rlcg==' | base64 -d)/ExcelBinOutput/WeaponExcelConfigData.json
+          wget -q $(echo 'aHR0cHM6Ly9naXRsYWIuY29tL0RpbWJyZWF0aC9BbmltZUdhbWVEYXRhLy0vcmF3L21hc3Rlcg==' | base64 -d)/TextMap/TextMapCHS.json
+          wget -q https://github.com/monsterxcn/nonebot-plugin-gspanel/raw/main/data/gspanel/char-alias.json
+          wget -q https://github.com/DGP-Studio/Snap.Metadata/raw/main/Genshin/CHS/Avatar.json
+          python update-alias.py
+
+      - name: Upload files
+        uses: tvrcgo/upload-to-oss@master
+        with:
+          key-id: ${{ secrets.OSS_KEY_ID }}
+          key-secret: ${{ secrets.OSS_KEY_SECRET }}
+          region: oss-cn-shanghai
+          bucket: monsterx
+          assets: |
+            data/gsmaterial/item-alias.json:/bot/gsmaterial/item-alias.json
+
+      - name: Commit changes
+        uses: EndBug/add-and-commit@v9
+        with:
+          author_name: github-actions[bot]
+          author_email: github-actions[bot]@users.noreply.github.com
+          message: ':wrench: 自动更新别名数据'
+          add: |
+            'data/gsmaterial/item-alias.json'
