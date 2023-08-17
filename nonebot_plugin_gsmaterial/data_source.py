@@ -354,7 +354,7 @@ async def download(
                     logger.info(f"正在下载文件 {f.name}\n>>>>> {url}")
                     headers = (
                         {
-                            "host": "uploadstatic.mihoyo.com",
+                            "host": "act-webstatic.mihoyo.com",
                             "referer": "https://webstatic.mihoyo.com/",
                             "sec-fetch-dest": "image",
                             "sec-fetch-mode": "no-cors",
@@ -434,7 +434,8 @@ async def update_config() -> None:
             domains,
             key=lambda x: (
                 1
-                if domains[x]["name"] in ["炼武秘境：水光之城", "炼武秘境：深没之谷", "炼武秘境：渴水的废都"]
+                if domains[x]["name"]
+                in ["炼武秘境：水光之城", "炼武秘境：深没之谷", "炼武秘境：渴水的废都", "炼武秘境：云垢"]
                 else domains[x]["city"]
             ),
         )
