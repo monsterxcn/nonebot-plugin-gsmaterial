@@ -16,8 +16,8 @@
 </p></br>
 
 
-| ![示例](https://user-images.githubusercontent.com/22407052/222161789-a9b09aaa-0ec3-4b1e-ba2b-3d7107f1f9d4.jpg) |
-|:--:|
+| ![daily 1 avatar](https://github.com/monsterxcn/nonebot-plugin-gsmaterial/assets/22407052/24b343b6-838a-4976-8566-fc14124cc5dd) | ![daily 2 weapon](https://github.com/monsterxcn/nonebot-plugin-gsmaterial/assets/22407052/ef9a9871-1b28-45dc-b52f-02872a319de7) | ![weekly 8](https://github.com/monsterxcn/nonebot-plugin-gsmaterial/assets/22407052/fd90b333-90e6-4d34-9523-1b991eb51945) | ![clac 10000084](https://github.com/monsterxcn/nonebot-plugin-gsmaterial/assets/22407052/2db48921-0dfa-453f-90b3-82d83af1238b) |
+|:--:|:--:|:--:|:--:|
 
 
 ## 安装方法
@@ -164,7 +164,7 @@ login_ticket 获取方式请参考 https://github.com/monsterxcn/nonebot-plugin-
    | `草龙` / `草龙王` / `阿佩普` / `绿洲守望者` | 返回 *阿佩普的绿洲守望者* 掉落材料图片 |
    | `测试` / `未知` / `未实装` / `未上线` | 返回 *尚未实装周本* 掉落材料图片（如果有） |
    
-   ![周本总图](https://user-images.githubusercontent.com/22407052/222161368-ac5b7c34-9583-47ec-82ef-6447273770e6.jpg)
+   ![周本总图](https://github.com/monsterxcn/nonebot-plugin-gsmaterial/assets/22407052/952979c8-7c05-4ee5-b065-4ff43069a716)
 
  - 以 `原神计算` 开头的消息
    
