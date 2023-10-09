@@ -34,6 +34,16 @@ async def daily_material(bot: Bot, event: MessageEvent, state: T_State):
     arg = str(state["_prefix"]["command_arg"])
     qq = str(event.get_user_id())
 
+    # 单独响应更新指令
+    if arg.startswith("更新"):
+        await update_config()
+        msg = await generate_daily_msg("update")
+        await mt_daily_matcher.finish(
+            MessageSegment.text(msg)
+            if isinstance(msg, str)
+            else MessageSegment.image(msg)
+        )
+
     # 单独响应订阅指令
     if arg.startswith("订阅"):
         is_delete = "删除" in arg
