@@ -122,13 +122,18 @@ async def draw_materials(config: Dict, needs: List[str], day: int = 0) -> Path:
                     else key_id,
                     DL_CFG["item"]["fmt"],
                 )
-                _key_icon_img = Image.open(_key_icon_path).resize((140, 140), RESAMPLING)
+                _key_icon_img = (
+                    Image.open(_key_icon_path)
+                    .resize((140, 140), RESAMPLING)
+                    .convert("RGBA")
+                )
                 _key_icon.paste(_key_icon_img, (0, 0), _key_icon_img)
                 _key_icon = (await circle_corner(_key_icon, radius=30)).resize(
                     (80, 80), RESAMPLING
                 )
                 img.paste(_key_icon, (25, startH), _key_icon)
-            except:  # noqa: E722
+            except Exception as e:
+                logger.opt(exception=e).error(key)
                 pass
             # 绘制分组所属材料的名称
             ImageDraw.Draw(img).text(
@@ -164,13 +169,18 @@ async def draw_materials(config: Dict, needs: List[str], day: int = 0) -> Path:
                         this_id if DL_CFG[_dl_cfg_key]["file"] == "id" else name,
                         DL_CFG[_dl_cfg_key]["fmt"],
                     )
-                    _icon_img = Image.open(_icon_path).resize((140, 140), RESAMPLING)
+                    _icon_img = (
+                        Image.open(_icon_path)
+                        .resize((140, 140), RESAMPLING)
+                        .convert("RGBA")
+                    )
                     _icon.paste(_icon_img, (0, 0), _icon_img)
                     _icon = (await circle_corner(_icon, radius=10)).resize(
                         (150, 150), RESAMPLING  # 140
                     )
                     img.paste(_icon, (draw_X + 10, draw_Y + 10), _icon)
-                except:  # noqa: E722
+                except Exception as e:
+                    logger.opt(exception=e).error(item)
                     pass
                 # 角色/武器名称
                 name_bbox = font(30).getbbox(name)
