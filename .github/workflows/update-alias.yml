@@ -17,14 +17,18 @@ jobs:
           python-version: 3.8
 
       - name: Update files
+        env:
+            GAMEDATA: ${{ secrets.GAME_DATA_REPO }}
         run: |
           cd .github
-          wget -q $(echo 'aHR0cHM6Ly9naXRsYWIuY29tL0RpbWJyZWF0aC9BbmltZUdhbWVEYXRhLy0vcmF3L21hc3Rlcg==' | base64 -d)/ExcelBinOutput/AvatarExcelConfigData.json
-          wget -q $(echo 'aHR0cHM6Ly9naXRsYWIuY29tL0RpbWJyZWF0aC9BbmltZUdhbWVEYXRhLy0vcmF3L21hc3Rlcg==' | base64 -d)/ExcelBinOutput/WeaponExcelConfigData.json
-          wget -q $(echo 'aHR0cHM6Ly9naXRsYWIuY29tL0RpbWJyZWF0aC9BbmltZUdhbWVEYXRhLy0vcmF3L21hc3Rlcg==' | base64 -d)/TextMap/TextMapCHS.json
+          wget -q "${GAMEDATA}/ExcelBinOutput/AvatarExcelConfigData.json"
+          wget -q "${GAMEDATA}/ExcelBinOutput/WeaponExcelConfigData.json"
+          wget -q "${GAMEDATA}/TextMap/TextMapCHS.json"
           wget -q https://github.com/monsterxcn/nonebot-plugin-gspanel/raw/main/data/gspanel/char-alias.json
+          wget -q https://github.com/ctrlcvs/xiaoyao-cvs-plugin/raw/master/resources/Atlas_alias/wuqi_tujian.yaml
           wget -q https://github.com/DGP-Studio/Snap.Metadata/raw/main/Genshin/CHS/Avatar.json
           python update-alias.py
+          mv -f item-alias.json ../data/gsmaterial/item-alias.json
 
       - name: Upload files
         uses: tvrcgo/upload-to-oss@master

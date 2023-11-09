@@ -223,4 +223,4 @@ login_ticket 获取方式请参考 https://github.com/monsterxcn/nonebot-plugin-
 ## 特别鸣谢
 
 
-[@Mrs4s/go-cqhttp](https://github.com/Mrs4s/go-cqhttp) | [@nonebot/nonebot2](https://github.com/nonebot/nonebot2) | [@nonebot/plugin-apscheduler](https://github.com/nonebot/plugin-apscheduler) | [Project Amber](https://ambr.top/chs)
+[@Mrs4s/go-cqhttp](https://github.com/Mrs4s/go-cqhttp) | [@nonebot/nonebot2](https://github.com/nonebot/nonebot2) | [@nonebot/plugin-apscheduler](https://github.com/nonebot/plugin-apscheduler) | [@DGP-Studio/Snap.Metadata](https://github.com/DGP-Studio/Snap.Metadata) | [@ctrlcvs/xiaoyao-cvs-plugin](https://github.com/ctrlcvs/xiaoyao-cvs-plugin) | [Project Amber](https://ambr.top/chs)
