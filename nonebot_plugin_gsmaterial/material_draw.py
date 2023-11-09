@@ -299,7 +299,7 @@ async def draw_calculator(name: str, target: Dict, calculate: Dict) -> Union[byt
                 cost["id"] if DL_CFG["item"]["file"] == "id" else cost["name"],
                 DL_CFG["item"]["fmt"],
             )
-            _icon_img = Image.open(_icon_path).resize((50, 50), RESAMPLING)
+            _icon_img = Image.open(_icon_path).resize((50, 50), RESAMPLING).convert("RGBA")
             img.paste(_icon_img, (_draw_X, _draw_Y), _icon_img)
             # 名称 × 数量
             cost_str = f"{cost['name']} × {cost['num']}"
